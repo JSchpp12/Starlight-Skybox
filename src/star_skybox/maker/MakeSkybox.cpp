@@ -1,7 +1,7 @@
 #include "star_skybox/maker/MakeSkybox.hpp"
 
 #include "star_skybox/io/SkyboxInfoReader.hpp"
-#include "star_skybox/textures/TransferRequest_Skybox.hpp"
+#include "star_skybox/maker/SkyboxFactory.hpp"
 
 #include <starlight/command/FileIO/ReadFromFile.hpp>
 #include <starlight/core/Exceptions.hpp>
@@ -58,9 +58,7 @@ star::Handle MakeSkybox::make()
     star::command::file_io::ReadFromFile readCmd{std::move(readTask)};
     m_deviceContext.getCmdBus().submit(readCmd);
 
-    auto request =
-        std::make_unique<star_skybox::TransferRequest::Skybox<star_skybox::TransferRequest::LinearTexturePolicy>>(
-            std::move(skyboxInfo), graphicsQueue->getParentQueueFamilyIndex());
+    auto request = SkyboxFactory::MakeSkybox(std::move(skyboxInfo), graphicsQueue->getParentQueueFamilyIndex());
     return star::ManagerRenderResource::addRequest(m_deviceContext.getDeviceID(), std::move(request));
 }
 } // namespace star_skybox::maker

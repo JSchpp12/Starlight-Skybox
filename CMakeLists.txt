@@ -17,13 +17,17 @@ endif()
 set(${PROJECT_NAME}_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/structs/SkyboxInfo.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/structs/SkyboxTextureOptions.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/structs/SkyboxTextureSpec.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/json/SkyboxEnums_JSON.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/json/SkyboxInfo_JSON.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/io/SkyboxInfoReader.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/io/SkyboxReader.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/SkyboxTexturePolicies.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/SelectSkyboxTextureFormat.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/EquirectTexturePolicy.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/LinearTexturePolicy.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/TransferRequest_Skybox.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/maker/MakeSkybox.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/maker/SkyboxFactory.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/primitive/SkyboxFactory.hpp
 )
 
@@ -32,7 +36,10 @@ set(${PROJECT_NAME}_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/json/SkyboxInfo_JSON.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/io/SkyboxInfoReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/TransferRequest_Skybox.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/EquirectTexturePolicy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/LinearTexturePolicy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/maker/MakeSkybox.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/maker/SkyboxFactory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/primitive/SkyboxFactory.cpp
 )
 

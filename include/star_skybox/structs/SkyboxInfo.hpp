@@ -10,6 +10,7 @@ namespace star_skybox
 /// @brief Projection layout of a skybox image.
 enum class SkyboxLayout : std::uint8_t
 {
+    Linear, // corelates to no transformations needed to represent texture
     Equirect
 };
 

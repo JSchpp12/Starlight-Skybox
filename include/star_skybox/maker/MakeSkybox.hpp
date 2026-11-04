@@ -22,6 +22,8 @@ class MakeSkybox
     MakeSkybox &setTexture(std::string texture);
 
     /// @brief Queues the info read, submits the transfer request, and returns the handle to the resulting texture.
+    /// @details The transfer policy is chosen from the sidecar's layout, so the same maker handles every skybox
+    /// layout without the caller having to know which one the asset uses.
     [[nodiscard]] star::Handle make();
 
   private:

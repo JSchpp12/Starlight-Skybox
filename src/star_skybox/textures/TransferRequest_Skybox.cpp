@@ -1,5 +1,8 @@
 #include "star_skybox/textures/TransferRequest_Skybox.hpp"
 
+#include "star_skybox/io/SkyboxReader.hpp"
+#include "star_skybox/structs/SkyboxTextureSpec.hpp"
+
 #include "starlight/core/Exceptions.hpp"
 #include "starlight/maker/buffer/MakeBuffer.hpp"
 #include "starlight/maker/texture/MakeTexture.hpp"
@@ -8,36 +11,25 @@
 #include <cassert>
 #include <string>
 #include <utility>
+#include <variant>
+#include <vector>
 
 namespace star_skybox::TransferRequest
 {
-static constexpr uint32_t CubeFaceCount = 6;
-
-static std::string GetTextureName(const SkyboxInfo &info)
+namespace
+{
+std::string GetTextureName(const SkyboxInfo &info)
 {
     return info.name.empty() ? "skybox" : info.name;
 }
+} // namespace
 
-static vk::Format SelectFormat(const SkyboxLayout &layout, const SkyboxFormatScaling &formatScaling)
+Skybox::Skybox(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex)
+    : m_skyboxInfo(std::move(skyboxInfo)), m_graphicsQueueFamilyIndex(graphicsQueueFamilyIndex)
 {
-    switch (layout)
-    {
-    case SkyboxLayout::Equirect:
-        // Equirectangular skyboxes are sourced from HDR data, so the format is always floating point.
-        switch (formatScaling)
-        {
-        case SkyboxFormatScaling::Full:
-            return vk::Format::eR32G32B32A32Sfloat;
-        case SkyboxFormatScaling::Half:
-            return vk::Format::eR16G16B16A16Sfloat;
-        }
-        break;
-    }
-
-    return vk::Format::eUndefined;
 }
 
-template <SkyboxTexturePolicy Policy> void Skybox<Policy>::prep()
+void Skybox::prep()
 {
     if (!m_info.has_value())
         m_info = m_skyboxInfo->get();
@@ -56,13 +48,12 @@ template <SkyboxTexturePolicy Policy> void Skybox<Policy>::prep()
     }
 }
 
-template <SkyboxTexturePolicy Policy> std::string Skybox<Policy>::getDebugDescription() const
+std::string Skybox::getDebugDescription() const
 {
     return m_info.has_value() ? GetTextureName(*m_info) : "skybox";
 }
 
-template <SkyboxTexturePolicy Policy>
-std::unique_ptr<star::StarBuffers::Buffer> Skybox<Policy>::createStagingBuffer(
+std::unique_ptr<star::StarBuffers::Buffer> Skybox::createStagingBuffer(
     star::core::device::StarDevice &device) const
 {
     assert(m_transformInfo.has_value() && "prep() must resolve the transform info before createStagingBuffer()");
@@ -86,7 +77,8 @@ std::unique_ptr<star::StarBuffers::Buffer> Skybox<Policy>::createStagingBuffer(
                                                    .setSharingMode(vk::SharingMode::eExclusive)
                                                    .setSize(size)
                                                    .setUsage(vk::BufferUsageFlagBits::eTransferSrc),
-                                               GetTextureName(m_transformInfo->skyboxInfo) + "_SkyboxTransferSRCBuffer")
+                                               GetTextureName(m_transformInfo->skyboxInfo) +
+                                                   "_SkyboxTransferSRCBuffer")
                                 .setInstanceCount(1)
                                 .setInstanceSize(size)
                                 .make(&builtBuffer, 1);
@@ -96,34 +88,36 @@ std::unique_ptr<star::StarBuffers::Buffer> Skybox<Policy>::createStagingBuffer(
     return std::make_unique<star::StarBuffers::Buffer>(std::move(builtBuffer));
 }
 
-template <SkyboxTexturePolicy Policy>
-std::unique_ptr<star::StarTextures::Texture> Skybox<Policy>::createFinal(
+std::unique_ptr<star::StarTextures::Texture> Skybox::createFinal(
     star::core::device::StarDevice &device, const std::vector<uint32_t> &transferQueueFamilyIndex) const
 {
     assert(m_transformInfo.has_value() && "prep() must resolve the transform info before createFinal()");
 
     const SkyboxInfo &info = m_transformInfo->skyboxInfo;
-    const SkyboxTextureOptions &options = info.textureOptions;
-    if (options.faceSize == 0)
-        STAR_THROW("Skybox texture options are incomplete: face_size is required");
+    // The sidecar's layout is the single authority for how the image is transferred; build the matching policy on the
+    // stack here and in the other phases rather than storing it on the request.
+    const PolicyVariant policy = MakePolicy(info.layout);
+    const SkyboxTextureSpec spec =
+        std::visit([&](const auto &p) { return p.describeTexture(info, m_transformInfo->imageFileInfo); }, policy);
 
-    const vk::Format format = SelectFormat(info.layout, options.formatScaling);
-    if (format == vk::Format::eUndefined)
+    if (spec.format == vk::Format::eUndefined)
         STAR_THROW("Unsupported skybox layout for texture creation");
+    if (spec.layerCount == 0 || spec.extent.width == 0 || spec.extent.height == 0)
+        STAR_THROW("Skybox texture spec is incomplete");
 
     std::vector<uint32_t> indices{this->m_graphicsQueueFamilyIndex};
     indices.reserve(transferQueueFamilyIndex.size() + 1);
     for (const auto &index : transferQueueFamilyIndex)
         indices.push_back(index);
 
-    const vk::ImageViewCreateInfo cubeView =
+    const vk::ImageViewCreateInfo textureView =
         vk::ImageViewCreateInfo()
-            .setViewType(vk::ImageViewType::eCube)
-            .setFormat(format)
+            .setViewType(spec.viewType)
+            .setFormat(spec.format)
             .setSubresourceRange(vk::ImageSubresourceRange()
                                      .setAspectMask(vk::ImageAspectFlagBits::eColor)
                                      .setBaseArrayLayer(0)
-                                     .setLayerCount(CubeFaceCount)
+                                     .setLayerCount(spec.layerCount)
                                      .setBaseMipLevel(0)
                                      .setLevelCount(1));
 
@@ -151,11 +145,12 @@ std::unique_ptr<star::StarTextures::Texture> Skybox<Policy>::createFinal(
                     .setUsage(VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO)
                     .build(),
                 vk::ImageCreateInfo()
-                    .setExtent(vk::Extent3D().setWidth(options.faceSize).setHeight(options.faceSize).setDepth(1))
+                    .setFlags(spec.imageFlags)
+                    .setExtent(spec.extent)
                     .setUsage(vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst)
                     .setImageType(vk::ImageType::e2D)
                     .setMipLevels(1)
-                    .setArrayLayers(CubeFaceCount)
+                    .setArrayLayers(spec.layerCount)
                     .setTiling(vk::ImageTiling::eOptimal)
                     .setInitialLayout(vk::ImageLayout::eUndefined)
                     .setSamples(vk::SampleCountFlagBits::e1)
@@ -163,8 +158,8 @@ std::unique_ptr<star::StarTextures::Texture> Skybox<Policy>::createFinal(
                     .setPQueueFamilyIndices(indices.data())
                     .setQueueFamilyIndexCount(static_cast<uint32_t>(indices.size())),
                 GetTextureName(info) + "_SkyboxTexture")
-            .setBaseFormat(format)
-            .addViewInfo(cubeView)
+            .setBaseFormat(spec.format)
+            .addViewInfo(textureView)
             .setSamplerInfo(samplerInfo)
             .make(&texture, 1);
     if (!makeResult)
@@ -173,21 +168,23 @@ std::unique_ptr<star::StarTextures::Texture> Skybox<Policy>::createFinal(
     return std::make_unique<star::StarTextures::Texture>(std::move(texture));
 }
 
-template <SkyboxTexturePolicy Policy>
-void Skybox<Policy>::copyFromTransferSRCToDST(star::StarBuffers::Buffer &srcBuffer, star::StarTextures::Texture &dst,
-                                              vk::CommandBuffer &commandBuffer) const
+void Skybox::copyFromTransferSRCToDST(star::StarBuffers::Buffer &srcBuffer, star::StarTextures::Texture &dst,
+                                      vk::CommandBuffer &commandBuffer) const
 {
     assert(m_transformInfo.has_value() && "prep() must resolve the transform info before copyFromTransferSRCToDST()");
 
-    m_policy.copySkyboxBufferToTexture(srcBuffer, dst, commandBuffer, *m_transformInfo);
+    const PolicyVariant policy = MakePolicy(m_transformInfo->skyboxInfo.layout);
+    std::visit([&](const auto &p) { p.copySkyboxBufferToTexture(srcBuffer, dst, commandBuffer, *m_transformInfo); },
+               policy);
 }
 
-template <SkyboxTexturePolicy Policy>
-void Skybox<Policy>::writeDataToStageBuffer(star::StarBuffers::Buffer &stagingBuffer) const
+void Skybox::writeDataToStageBuffer(star::StarBuffers::Buffer &stagingBuffer) const
 {
     assert(m_info.has_value() && "prep() must resolve the skybox info before writeDataToStageBuffer()");
 
-    auto skyboxData = m_policy.readSkybox(m_info->name, *m_transformInfo);
+    const PolicyVariant policy = MakePolicy(m_info->layout);
+    auto skyboxData =
+        std::visit([&](const auto &p) { return p.readSkybox(m_info->name, *m_transformInfo); }, policy);
     if (!skyboxData)
         STAR_THROW(skyboxData.error().what());
 
@@ -198,8 +195,17 @@ void Skybox<Policy>::writeDataToStageBuffer(star::StarBuffers::Buffer &stagingBu
     stagingBuffer.writeToBuffer(pixels.data(), mapped, static_cast<vk::DeviceSize>(pixels.size_bytes()));
     stagingBuffer.unmap();
 }
-} // namespace star_skybox::TransferRequest
 
-// Explicit instantiations: skybox transfers use LinearTexturePolicy for the current data flows; other policies are
-// added here once their data flows land.
-template class star_skybox::TransferRequest::Skybox<star_skybox::TransferRequest::LinearTexturePolicy>;
+Skybox::PolicyVariant Skybox::MakePolicy(SkyboxLayout layout)
+{
+    switch (layout)
+    {
+    case SkyboxLayout::Linear:
+        return LinearTexturePolicy{};
+    case SkyboxLayout::Equirect:
+        return EquirectTexturePolicy{};
+    }
+
+    STAR_THROW("Unsupported skybox layout");
+}
+} // namespace star_skybox::TransferRequest
