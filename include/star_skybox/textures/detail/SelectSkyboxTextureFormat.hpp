@@ -5,8 +5,10 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace star_skybox::detail
+namespace starlight::skybox::detail
 {
+using starlight::skybox::SkyboxFormatScaling;
+using starlight::skybox::SkyboxLayout;
 /// @brief Selects the Vulkan format for a skybox texture from its layout and precision scale.
 /// @details All current skybox sources are HDR, so every layout maps to a floating-point format.
 inline vk::Format SelectFormat(const SkyboxLayout &layout, const SkyboxFormatScaling &formatScaling)
@@ -27,4 +29,4 @@ inline vk::Format SelectFormat(const SkyboxLayout &layout, const SkyboxFormatSca
 
     return vk::Format::eUndefined;
 }
-} // namespace star_skybox::detail
+} // namespace starlight::skybox::detail

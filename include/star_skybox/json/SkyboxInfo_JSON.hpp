@@ -5,8 +5,8 @@
 
 #include <nlohmann/json.hpp>
 
-namespace star_skybox
+namespace starlight::skybox
 {
 void to_json(nlohmann::json &j, const SkyboxInfo &info);
 void from_json(const nlohmann::json &j, SkyboxInfo &info);
-} // namespace star_skybox
+} // namespace starlight::skybox

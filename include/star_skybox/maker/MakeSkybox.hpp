@@ -9,7 +9,7 @@ namespace star::core::device
 class DeviceContext;
 }
 
-namespace star_skybox::maker
+namespace starlight::skybox::maker
 {
 /// @brief Loads a skybox description from a JSON file and submits the texture transfer request that backs it.
 class MakeSkybox
@@ -30,4 +30,4 @@ class MakeSkybox
     star::core::device::DeviceContext &m_deviceContext;
     std::string m_texture;
 };
-} // namespace star_skybox::maker
+} // namespace starlight::skybox::maker

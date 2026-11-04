@@ -4,7 +4,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace star_skybox
+namespace starlight::skybox
 {
 /// @brief Description of the GPU texture a skybox layout produces.
 /// @details Policies fill this in from the skybox description and the source image; the transfer request uses it to
@@ -22,4 +22,4 @@ struct SkyboxTextureSpec
     /// Extra image creation flags (e.g. cube-compatible for cube layouts).
     vk::ImageCreateFlags imageFlags{};
 };
-} // namespace star_skybox
+} // namespace starlight::skybox

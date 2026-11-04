@@ -4,11 +4,13 @@
 
 #include <utility>
 
-namespace star_skybox::maker
+namespace starlight::skybox::maker
 {
+using starlight::skybox::SkyboxInfo;
 std::unique_ptr<star::TransferRequest::Texture> SkyboxFactory::MakeSkybox(
     std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex)
 {
-    return std::make_unique<star_skybox::TransferRequest::Skybox>(std::move(skyboxInfo), graphicsQueueFamilyIndex);
+    return std::make_unique<starlight::skybox::TransferRequest::Skybox>(std::move(skyboxInfo),
+                                                                        graphicsQueueFamilyIndex);
 }
-} // namespace star_skybox::maker
+} // namespace starlight::skybox::maker

@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <string>
 
-namespace star_skybox
+namespace starlight::skybox
 {
 /// @brief Projection layout of a skybox image.
 enum class SkyboxLayout : std::uint8_t
@@ -26,4 +26,4 @@ struct SkyboxInfo
     /// Name of the skybox texture file. Used as the source image and to derive debug names.
     std::string name;
 };
-} // namespace star_skybox
+} // namespace starlight::skybox

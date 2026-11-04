@@ -16,8 +16,9 @@
 #include <memory>
 #include <utility>
 
-namespace star_skybox::maker
+namespace starlight::skybox::maker
 {
+using starlight::skybox::SkyboxInfo;
 static std::filesystem::path GetInfoPath(const std::string &texture)
 {
     std::filesystem::path infoPath{texture};
@@ -49,10 +50,10 @@ star::Handle MakeSkybox::make()
 
     const std::filesystem::path infoPath = GetInfoPath(m_texture);
 
-    star_skybox::io::SkyboxInfoReader reader;
+    starlight::skybox::io::SkyboxInfoReader reader;
     auto skyboxInfo = std::make_shared<std::future<SkyboxInfo>>(reader.getFuture());
 
-    auto readPayload = star::job::tasks::io::ReadPayload<star_skybox::io::SkyboxInfoReader>{
+    auto readPayload = star::job::tasks::io::ReadPayload<starlight::skybox::io::SkyboxInfoReader>{
         .filePath = infoPath, .readFunction = std::move(reader)};
     auto readTask = star::job::tasks::io::CreateReadTask(std::move(readPayload));
     star::command::file_io::ReadFromFile readCmd{std::move(readTask)};
@@ -61,4 +62,4 @@ star::Handle MakeSkybox::make()
     auto request = SkyboxFactory::MakeSkybox(std::move(skyboxInfo), graphicsQueue->getParentQueueFamilyIndex());
     return star::ManagerRenderResource::addRequest(m_deviceContext.getDeviceID(), std::move(request));
 }
-} // namespace star_skybox::maker
+} // namespace starlight::skybox::maker

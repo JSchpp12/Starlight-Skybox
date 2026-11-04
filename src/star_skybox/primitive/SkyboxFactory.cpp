@@ -1,6 +1,6 @@
 #include "star_skybox/primitive/SkyboxFactory.hpp"
 
-namespace star_skybox::primitive
+namespace starlight::skybox::primitive
 {
 star::primitive::CubeObject::OptionalRenderingOverrides CreateSkyboxRenderOverrides()
 {
@@ -15,4 +15,4 @@ star::primitive::CubeObject::OptionalRenderingOverrides CreateSkyboxRenderOverri
     return star::primitive::CubeObject::OptionalRenderingOverrides{.cullMode = vk::CullModeFlagBits::eNone,
                                                                    .depthStencil = depthStencil};
 }
-} // namespace star_skybox::primitive
+} // namespace starlight::skybox::primitive

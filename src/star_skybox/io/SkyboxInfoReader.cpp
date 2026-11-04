@@ -9,7 +9,7 @@
 #include <cassert>
 #include <fstream>
 
-namespace star_skybox::io
+namespace starlight::skybox::io
 {
 int SkyboxInfoReader::operator()(const std::filesystem::path &filePath)
 {
@@ -30,4 +30,4 @@ SkyboxInfo SkyboxInfoReader::load(const std::filesystem::path &filePath) const
 
     return nlohmann::json::parse(stream).get<SkyboxInfo>();
 }
-} // namespace star_skybox::io
+} // namespace starlight::skybox::io

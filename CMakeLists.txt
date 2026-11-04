@@ -24,6 +24,7 @@ set(${PROJECT_NAME}_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/io/SkyboxReader.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/SelectSkyboxTextureFormat.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/EquirectTexturePolicy.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/EquirectTextureTransformer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/LinearTexturePolicy.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/TransferRequest_Skybox.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/maker/MakeSkybox.hpp
@@ -37,6 +38,7 @@ set(${PROJECT_NAME}_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/io/SkyboxInfoReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/TransferRequest_Skybox.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/EquirectTexturePolicy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/EquirectTextureTransformer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/LinearTexturePolicy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/maker/MakeSkybox.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/maker/SkyboxFactory.cpp

@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace star_skybox
+namespace starlight::skybox
 {
 void to_json(nlohmann::json &j, const SkyboxLayout &layout)
 {
@@ -52,4 +52,4 @@ void from_json(const nlohmann::json &j, SkyboxFormatScaling &formatScaling)
     else
         throw std::invalid_argument("Unknown SkyboxFormatScaling value: " + value);
 }
-} // namespace star_skybox
+} // namespace starlight::skybox

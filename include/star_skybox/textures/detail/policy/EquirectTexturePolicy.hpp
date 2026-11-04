@@ -12,8 +12,9 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace star_skybox::TransferRequest
+namespace starlight::skybox::TransferRequest
 {
+using starlight::skybox::SkyboxInfo;
 /// @brief Skybox transfer policy for equirectangular textures.
 /// @details The equirectangular skybox image must be reshaped into the cube texture's six faces, both when decoding
 /// pixel data and when copying it to the GPU. Implementations are pending; each op errors until then.
@@ -39,4 +40,4 @@ class EquirectTexturePolicy
                                    vk::CommandBuffer &commandBuffer,
                                    const io::SkyboxTransformInfo &transformInfo) const;
 };
-} // namespace star_skybox::TransferRequest
+} // namespace starlight::skybox::TransferRequest

@@ -15,8 +15,10 @@
 #include <variant>
 #include <vector>
 
-namespace star_skybox::TransferRequest
+namespace starlight::skybox::TransferRequest
 {
+using starlight::skybox::SkyboxInfo;
+using starlight::skybox::SkyboxLayout;
 /// @brief Transfer request creating a skybox texture from a single image file.
 /// @details The loaded skybox description's layout (SkyboxInfo::layout) selects the transfer policy: Linear copies
 /// the image as-is into a single-layer 2D texture, Equirect reshapes it into the cube texture's six faces.
@@ -62,4 +64,4 @@ class Skybox : public star::TransferRequest::Texture
     /// Cached source-file and skybox info resolved by prep(); reused by every phase of the transfer.
     std::optional<io::SkyboxTransformInfo> m_transformInfo = std::nullopt;
 };
-} // namespace star_skybox::TransferRequest
+} // namespace starlight::skybox::TransferRequest

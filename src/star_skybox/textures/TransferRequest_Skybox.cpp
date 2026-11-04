@@ -14,15 +14,15 @@
 #include <variant>
 #include <vector>
 
-namespace star_skybox::TransferRequest
+namespace starlight::skybox::TransferRequest
 {
-namespace
-{
-std::string GetTextureName(const SkyboxInfo &info)
+using starlight::skybox::SkyboxInfo;
+using starlight::skybox::SkyboxLayout;
+
+static std::string GetTextureName(const SkyboxInfo &info)
 {
     return info.name.empty() ? "skybox" : info.name;
 }
-} // namespace
 
 Skybox::Skybox(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex)
     : m_skyboxInfo(std::move(skyboxInfo)), m_graphicsQueueFamilyIndex(graphicsQueueFamilyIndex)
@@ -53,8 +53,7 @@ std::string Skybox::getDebugDescription() const
     return m_info.has_value() ? GetTextureName(*m_info) : "skybox";
 }
 
-std::unique_ptr<star::StarBuffers::Buffer> Skybox::createStagingBuffer(
-    star::core::device::StarDevice &device) const
+std::unique_ptr<star::StarBuffers::Buffer> Skybox::createStagingBuffer(star::core::device::StarDevice &device) const
 {
     assert(m_transformInfo.has_value() && "prep() must resolve the transform info before createStagingBuffer()");
 
@@ -77,8 +76,7 @@ std::unique_ptr<star::StarBuffers::Buffer> Skybox::createStagingBuffer(
                                                    .setSharingMode(vk::SharingMode::eExclusive)
                                                    .setSize(size)
                                                    .setUsage(vk::BufferUsageFlagBits::eTransferSrc),
-                                               GetTextureName(m_transformInfo->skyboxInfo) +
-                                                   "_SkyboxTransferSRCBuffer")
+                                               GetTextureName(m_transformInfo->skyboxInfo) + "_SkyboxTransferSRCBuffer")
                                 .setInstanceCount(1)
                                 .setInstanceSize(size)
                                 .make(&builtBuffer, 1);
@@ -139,25 +137,24 @@ std::unique_ptr<star::StarTextures::Texture> Skybox::createFinal(
     star::StarTextures::Texture texture;
     const auto makeResult =
         star::maker::texture::MakeTexture(device)
-            .setCreateInfo(
-                star::Allocator::AllocationBuilder()
-                    .setFlags(VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT)
-                    .setUsage(VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO)
-                    .build(),
-                vk::ImageCreateInfo()
-                    .setFlags(spec.imageFlags)
-                    .setExtent(spec.extent)
-                    .setUsage(vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst)
-                    .setImageType(vk::ImageType::e2D)
-                    .setMipLevels(1)
-                    .setArrayLayers(spec.layerCount)
-                    .setTiling(vk::ImageTiling::eOptimal)
-                    .setInitialLayout(vk::ImageLayout::eUndefined)
-                    .setSamples(vk::SampleCountFlagBits::e1)
-                    .setSharingMode(vk::SharingMode::eConcurrent)
-                    .setPQueueFamilyIndices(indices.data())
-                    .setQueueFamilyIndexCount(static_cast<uint32_t>(indices.size())),
-                GetTextureName(info) + "_SkyboxTexture")
+            .setCreateInfo(star::Allocator::AllocationBuilder()
+                               .setFlags(VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT)
+                               .setUsage(VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO)
+                               .build(),
+                           vk::ImageCreateInfo()
+                               .setFlags(spec.imageFlags)
+                               .setExtent(spec.extent)
+                               .setUsage(vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst)
+                               .setImageType(vk::ImageType::e2D)
+                               .setMipLevels(1)
+                               .setArrayLayers(spec.layerCount)
+                               .setTiling(vk::ImageTiling::eOptimal)
+                               .setInitialLayout(vk::ImageLayout::eUndefined)
+                               .setSamples(vk::SampleCountFlagBits::e1)
+                               .setSharingMode(vk::SharingMode::eConcurrent)
+                               .setPQueueFamilyIndices(indices.data())
+                               .setQueueFamilyIndexCount(static_cast<uint32_t>(indices.size())),
+                           GetTextureName(info) + "_SkyboxTexture")
             .setBaseFormat(spec.format)
             .addViewInfo(textureView)
             .setSamplerInfo(samplerInfo)
@@ -183,8 +180,7 @@ void Skybox::writeDataToStageBuffer(star::StarBuffers::Buffer &stagingBuffer) co
     assert(m_info.has_value() && "prep() must resolve the skybox info before writeDataToStageBuffer()");
 
     const PolicyVariant policy = MakePolicy(m_info->layout);
-    auto skyboxData =
-        std::visit([&](const auto &p) { return p.readSkybox(m_info->name, *m_transformInfo); }, policy);
+    auto skyboxData = std::visit([&](const auto &p) { return p.readSkybox(m_info->name, *m_transformInfo); }, policy);
     if (!skyboxData)
         STAR_THROW(skyboxData.error().what());
 
@@ -208,4 +204,4 @@ Skybox::PolicyVariant Skybox::MakePolicy(SkyboxLayout layout)
 
     STAR_THROW("Unsupported skybox layout");
 }
-} // namespace star_skybox::TransferRequest
+} // namespace starlight::skybox::TransferRequest

@@ -4,15 +4,16 @@
 
 #include <cstdint>
 
-namespace star_skybox::TransferRequest
+namespace starlight::skybox::TransferRequest
 {
+using starlight::skybox::SkyboxInfo;
 SkyboxTextureSpec LinearTexturePolicy::describeTexture(const SkyboxInfo &info,
                                                        const star::ImageFileInfo &imageFileInfo) const
 {
     return SkyboxTextureSpec{
         .extent = vk::Extent3D{static_cast<std::uint32_t>(imageFileInfo.resolution.x),
                                static_cast<std::uint32_t>(imageFileInfo.resolution.y), 1},
-        .format = star_skybox::detail::SelectFormat(info.layout, info.textureOptions.formatScaling),
+        .format = starlight::skybox::detail::SelectFormat(info.layout, info.textureOptions.formatScaling),
         .viewType = vk::ImageViewType::e2D,
         .layerCount = 1,
         .imageFlags = vk::ImageCreateFlags{},
@@ -54,4 +55,4 @@ void LinearTexturePolicy::copySkyboxBufferToTexture(star::StarBuffers::Buffer &s
                                                        vk::ImageLayout::eTransferDstOptimal,
                                                        vk::ImageLayout::eShaderReadOnlyOptimal);
 }
-} // namespace star_skybox::TransferRequest
+} // namespace starlight::skybox::TransferRequest

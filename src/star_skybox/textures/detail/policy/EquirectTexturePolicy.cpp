@@ -6,8 +6,9 @@
 
 #include <cstdint>
 
-namespace star_skybox::TransferRequest
+namespace starlight::skybox::TransferRequest
 {
+using starlight::skybox::SkyboxInfo;
 SkyboxTextureSpec EquirectTexturePolicy::describeTexture(const SkyboxInfo &info,
                                                          const star::ImageFileInfo &imageFileInfo) const
 {
@@ -19,7 +20,7 @@ SkyboxTextureSpec EquirectTexturePolicy::describeTexture(const SkyboxInfo &info,
 
     return SkyboxTextureSpec{
         .extent = vk::Extent3D{faceSize, faceSize, 1},
-        .format = star_skybox::detail::SelectFormat(info.layout, info.textureOptions.formatScaling),
+        .format = starlight::skybox::detail::SelectFormat(info.layout, info.textureOptions.formatScaling),
         .viewType = vk::ImageViewType::eCube,
         .layerCount = 6,
         .imageFlags = vk::ImageCreateFlags{vk::ImageCreateFlagBits::eCubeCompatible},
@@ -46,4 +47,4 @@ void EquirectTexturePolicy::copySkyboxBufferToTexture(star::StarBuffers::Buffer 
 
     STAR_THROW("EquirectTexturePolicy::copySkyboxBufferToTexture is not implemented");
 }
-} // namespace star_skybox::TransferRequest
+} // namespace starlight::skybox::TransferRequest

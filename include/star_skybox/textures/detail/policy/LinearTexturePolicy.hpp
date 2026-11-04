@@ -12,8 +12,9 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace star_skybox::TransferRequest
+namespace starlight::skybox::TransferRequest
 {
+using starlight::skybox::SkyboxInfo;
 /// @brief Skybox transfer policy for linear textures.
 /// @details The skybox image is transferred into the target texture as-is, one image copy. The final texture is a
 /// single-layer 2D image matching the source image's resolution; no cube view is created.
@@ -22,6 +23,10 @@ class LinearTexturePolicy
   public:
     LinearTexturePolicy() = default;
     ~LinearTexturePolicy() = default;
+    LinearTexturePolicy(LinearTexturePolicy &&) = default;
+    LinearTexturePolicy &operator=(LinearTexturePolicy &&) = default;
+    LinearTexturePolicy(const LinearTexturePolicy &) = default;
+    LinearTexturePolicy &operator=(const LinearTexturePolicy &) = default;
 
     /// @brief Describes the target texture: a single-layer 2D image matching the source image's resolution.
     SkyboxTextureSpec describeTexture(const SkyboxInfo &info, const star::ImageFileInfo &imageFileInfo) const;
@@ -35,6 +40,7 @@ class LinearTexturePolicy
     /// @details Follows TransferRequest's default single-image copy: transition the target to
     /// transfer-optimal, copy the staged pixels, then transition it to shader-read.
     void copySkyboxBufferToTexture(star::StarBuffers::Buffer &srcBuffer, star::StarTextures::Texture &dst,
-                                   vk::CommandBuffer &commandBuffer, const io::SkyboxTransformInfo &transformInfo) const;
+                                   vk::CommandBuffer &commandBuffer,
+                                   const io::SkyboxTransformInfo &transformInfo) const;
 };
-} // namespace star_skybox::TransferRequest
+} // namespace starlight::skybox::TransferRequest

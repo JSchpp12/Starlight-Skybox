@@ -5,8 +5,9 @@
 #include <filesystem>
 #include <future>
 
-namespace star_skybox::io
+namespace starlight::skybox::io
 {
+using starlight::skybox::SkyboxInfo;
 /// @brief Reads a SkyboxInfo description from a JSON file.
 class SkyboxInfoReader
 {
@@ -26,4 +27,4 @@ class SkyboxInfoReader
 
     std::promise<SkyboxInfo> m_skyboxInfo;
 };
-} // namespace star_skybox::io
+} // namespace starlight::skybox::io
