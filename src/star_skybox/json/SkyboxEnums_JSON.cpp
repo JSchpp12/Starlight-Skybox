@@ -9,9 +9,6 @@ void to_json(nlohmann::json &j, const SkyboxLayout &layout)
 {
     switch (layout)
     {
-    case SkyboxLayout::Linear:
-        j = "linear";
-        break;
     case SkyboxLayout::Equirect:
         j = "equirect";
         break;
@@ -21,9 +18,7 @@ void to_json(nlohmann::json &j, const SkyboxLayout &layout)
 void from_json(const nlohmann::json &j, SkyboxLayout &layout)
 {
     const auto &value = j.get_ref<const std::string &>();
-    if (value == "linear")
-        layout = SkyboxLayout::Linear;
-    else if (value == "equirect")
+    if (value == "equirect")
         layout = SkyboxLayout::Equirect;
     else
         throw std::invalid_argument("Unknown SkyboxLayout value: " + value);

@@ -3,6 +3,7 @@
 #include "star_skybox/json/SkyboxInfo_JSON.hpp"
 
 #include <starlight/core/Exceptions.hpp>
+#include <starlight/core/logging/LoggingFactory.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -28,6 +29,9 @@ SkyboxInfo SkyboxInfoReader::load(const std::filesystem::path &filePath) const
     if (!stream)
         STAR_THROW("Failed to open skybox info file: " + filePath.string());
 
-    return nlohmann::json::parse(stream).get<SkyboxInfo>();
+    const SkyboxInfo info = nlohmann::json::parse(stream).get<SkyboxInfo>();
+    star::core::logging::debug("Parsed skybox info from ", filePath.string(), ": ", nlohmann::json(info).dump());
+
+    return info;
 }
 } // namespace starlight::skybox::io
