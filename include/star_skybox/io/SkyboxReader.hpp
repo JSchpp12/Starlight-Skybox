@@ -113,7 +113,7 @@ class SkyboxReader
                 return std::unexpected(star::io::ImageLoadException(info.error().path(), info.error().reason()));
 
             SkyboxInfo skyboxInfo;
-            skyboxInfo.name = m_path.string();
+            skyboxInfo.name = m_path.stem().string();
             return m_transform(std::move(*data), skyboxInfo, *info);
         }
     }

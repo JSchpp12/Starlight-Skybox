@@ -9,7 +9,6 @@
 #include <starlight/core/helper/queue/QueueHelpers.hpp>
 #include <starlight/enums/Enums.hpp>
 #include <starlight/job/tasks/IOTask.hpp>
-#include <starlight/managers/ManagerRenderResource.hpp>
 
 #include <filesystem>
 #include <future>
@@ -38,6 +37,12 @@ MakeSkybox &MakeSkybox::setTexture(std::string texture)
     return *this;
 }
 
+MakeSkybox &MakeSkybox::setTextureHandling(SkyboxGPUTextureStorageApproach approach)
+{
+    m_textureHandling = approach;
+    return *this;
+}
+
 star::Handle MakeSkybox::make()
 {
     if (m_texture.empty())
@@ -49,6 +54,7 @@ star::Handle MakeSkybox::make()
         STAR_THROW("Unable to find the engine graphics queue for the skybox transfer");
 
     const std::filesystem::path infoPath = GetInfoPath(m_texture);
+    const std::filesystem::path texturePath{m_texture};
 
     starlight::skybox::io::SkyboxInfoReader reader;
     auto skyboxInfo = std::make_shared<std::future<SkyboxInfo>>(reader.getFuture());
@@ -59,7 +65,7 @@ star::Handle MakeSkybox::make()
     star::command::file_io::ReadFromFile readCmd{std::move(readTask)};
     m_deviceContext.getCmdBus().submit(readCmd);
 
-    auto request = SkyboxFactory::MakeSkybox(std::move(skyboxInfo), graphicsQueue->getParentQueueFamilyIndex());
-    return star::ManagerRenderResource::addRequest(m_deviceContext.getDeviceID(), std::move(request));
+    return SkyboxFactory::MakeSkyboxGPUData(m_deviceContext.getDeviceID(), std::move(skyboxInfo),
+                                            graphicsQueue->getParentQueueFamilyIndex(), texturePath, m_textureHandling);
 }
 } // namespace starlight::skybox::maker

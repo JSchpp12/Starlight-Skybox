@@ -20,9 +20,20 @@ SkyboxTextureSpec LinearTexturePolicy::describeTexture(const SkyboxInfo &info,
     };
 }
 
+vk::DeviceSize LinearTexturePolicy::getSize(const SkyboxInfo &info, const star::ImageFileInfo &imageFileInfo) const
+{
+    (void)info;
+
+    // The linear policy copies the decoded EXR pixels through unchanged, so the staging buffer holds one pixel per
+    // source texel expanded to four float RGBA channels.
+    return static_cast<vk::DeviceSize>(imageFileInfo.resolution.x) *
+           static_cast<vk::DeviceSize>(imageFileInfo.resolution.y) * static_cast<vk::DeviceSize>(4u * sizeof(float));
+}
+
 std::expected<star::ExrData, star::io::ImageLoadException> LinearTexturePolicy::readSkybox(
     const std::filesystem::path &path, const io::SkyboxTransformInfo &transformInfo) const
 {
+    // No transform is installed: the raw EXR pixels are already the layout the target texture expects.
     io::SkyboxReader<> reader(path, transformInfo);
     return reader.read();
 }

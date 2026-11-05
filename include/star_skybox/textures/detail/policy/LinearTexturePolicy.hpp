@@ -31,6 +31,11 @@ class LinearTexturePolicy
     /// @brief Describes the target texture: a single-layer 2D image matching the source image's resolution.
     SkyboxTextureSpec describeTexture(const SkyboxInfo &info, const star::ImageFileInfo &imageFileInfo) const;
 
+    /// @brief Byte size of the pixel data readSkybox() produces, i.e. the staging buffer size.
+    /// @details The reader decodes every source pixel into four float RGBA channels and this policy copies them
+    /// through unchanged, so the staging buffer matches the source image's resolution.
+    vk::DeviceSize getSize(const SkyboxInfo &info, const star::ImageFileInfo &imageFileInfo) const;
+
     /// @brief Reads the skybox image file's pixel data without applying a layout transform.
     /// @returns The raw EXR pixel data, or the reason the file could not be decoded.
     std::expected<star::ExrData, star::io::ImageLoadException> readSkybox(

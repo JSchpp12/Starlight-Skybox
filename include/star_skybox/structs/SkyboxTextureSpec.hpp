@@ -15,8 +15,8 @@ struct SkyboxTextureSpec
     vk::Extent3D extent{};
     /// Vulkan format of the target texture.
     vk::Format format = vk::Format::eUndefined;
-    /// View type used to sample the texture (2D for linear transfers, cube for transformed layouts).
-    vk::ImageViewType viewType = vk::ImageViewType::e2D;
+    /// View type used to sample the texture (cube for skybox textures).
+    vk::ImageViewType viewType = vk::ImageViewType::eCube;
     /// Number of array layers the target texture has.
     std::uint32_t layerCount = 1;
     /// Extra image creation flags (e.g. cube-compatible for cube layouts).

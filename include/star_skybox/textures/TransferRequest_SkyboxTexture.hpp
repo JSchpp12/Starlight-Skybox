@@ -8,6 +8,7 @@
 #include "star_skybox/textures/detail/policy/LinearTexturePolicy.hpp"
 
 #include <cstdint>
+#include <filesystem>
 #include <future>
 #include <memory>
 #include <optional>
@@ -20,23 +21,26 @@ namespace starlight::skybox::TransferRequest
 using starlight::skybox::SkyboxInfo;
 using starlight::skybox::SkyboxLayout;
 /// @brief Transfer request creating a skybox texture from a single image file.
-/// @details The loaded skybox description's layout (SkyboxInfo::layout) selects the transfer policy: Linear copies
-/// the image as-is into a single-layer 2D texture, Equirect reshapes it into the cube texture's six faces.
-class Skybox : public star::TransferRequest::Texture
+/// @details The loaded skybox description's layout (SkyboxInfo::layout) selects the transfer policy, which reshapes
+/// the image for cube sampling. The source image is always the file the code selected through
+/// MakeSkybox::setTexture; the sidecar's "name" is only a debug label.
+class SkyboxTexture : public star::TransferRequest::Texture
 {
   public:
     /// @param skyboxInfo Future carrying the loaded skybox description.
     /// @param graphicsQueueFamilyIndex Family index of the engine's graphics queue.
-    Skybox(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex);
+    /// @param texturePath Path of the source image file the code selected; read for header info and pixel data.
+    SkyboxTexture(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex,
+                  std::filesystem::path texturePath);
 
-    Skybox(Skybox &&) = default;
-    Skybox &operator=(Skybox &&) = default;
-    Skybox(const Skybox &) = default;
-    Skybox &operator=(const Skybox &) = default;
-    virtual ~Skybox() = default;
+    SkyboxTexture(SkyboxTexture &&) = default;
+    SkyboxTexture &operator=(SkyboxTexture &&) = default;
+    SkyboxTexture(const SkyboxTexture &) = default;
+    SkyboxTexture &operator=(const SkyboxTexture &) = default;
+    virtual ~SkyboxTexture() = default;
 
     /// @brief Resolves the skybox description and the source image's file info.
-    /// @throws When the skybox info is missing a name or the source file's header cannot be parsed.
+    /// @throws When the source file's header cannot be parsed.
     virtual void prep() override;
 
     virtual std::string getDebugDescription() const override;
@@ -60,6 +64,8 @@ class Skybox : public star::TransferRequest::Texture
 
     std::shared_ptr<std::future<SkyboxInfo>> m_skyboxInfo;
     uint32_t m_graphicsQueueFamilyIndex = 0;
+    /// Source image file the code selected; the sole authority for which image is transferred.
+    std::filesystem::path m_texturePath;
     std::optional<SkyboxInfo> m_info = std::nullopt;
     /// Cached source-file and skybox info resolved by prep(); reused by every phase of the transfer.
     std::optional<io::SkyboxTransformInfo> m_transformInfo = std::nullopt;

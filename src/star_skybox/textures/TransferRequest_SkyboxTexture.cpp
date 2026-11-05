@@ -1,4 +1,4 @@
-#include "star_skybox/textures/TransferRequest_Skybox.hpp"
+#include "star_skybox/textures/TransferRequest_SkyboxTexture.hpp"
 
 #include "star_skybox/io/SkyboxReader.hpp"
 #include "star_skybox/structs/SkyboxTextureSpec.hpp"
@@ -24,22 +24,21 @@ static std::string GetTextureName(const SkyboxInfo &info)
     return info.name.empty() ? "skybox" : info.name;
 }
 
-Skybox::Skybox(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex)
-    : m_skyboxInfo(std::move(skyboxInfo)), m_graphicsQueueFamilyIndex(graphicsQueueFamilyIndex)
+SkyboxTexture::SkyboxTexture(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex,
+                             std::filesystem::path texturePath)
+    : m_skyboxInfo(std::move(skyboxInfo)), m_graphicsQueueFamilyIndex(graphicsQueueFamilyIndex),
+      m_texturePath(std::move(texturePath))
 {
 }
 
-void Skybox::prep()
+void SkyboxTexture::prep()
 {
     if (!m_info.has_value())
         m_info = m_skyboxInfo->get();
 
-    if (m_info->name.empty())
-        STAR_THROW("Skybox info is missing name");
-
     if (!m_transformInfo.has_value())
     {
-        io::SkyboxReader<> reader(m_info->name);
+        io::SkyboxReader<> reader(m_texturePath);
         auto imageInfo = reader.getInfo();
         if (!imageInfo)
             STAR_THROW(imageInfo.error().what());
@@ -48,22 +47,22 @@ void Skybox::prep()
     }
 }
 
-std::string Skybox::getDebugDescription() const
+std::string SkyboxTexture::getDebugDescription() const
 {
     return m_info.has_value() ? GetTextureName(*m_info) : "skybox";
 }
 
-std::unique_ptr<star::StarBuffers::Buffer> Skybox::createStagingBuffer(star::core::device::StarDevice &device) const
+std::unique_ptr<star::StarBuffers::Buffer> SkyboxTexture::createStagingBuffer(
+    star::core::device::StarDevice &device) const
 {
     assert(m_transformInfo.has_value() && "prep() must resolve the transform info before createStagingBuffer()");
 
-    const auto &imageFileInfo = m_transformInfo->imageFileInfo;
+    const SkyboxInfo &info = m_transformInfo->skyboxInfo;
 
-    // LoadEXR always expands the file to four float channels per pixel, so the staging buffer must match that
-    // layout rather than the file's native channel width.
-    const vk::DeviceSize size = static_cast<vk::DeviceSize>(imageFileInfo.resolution.x) *
-                                static_cast<vk::DeviceSize>(imageFileInfo.resolution.y) *
-                                static_cast<vk::DeviceSize>(4u * sizeof(float));
+    // The staging buffer holds the policy's transformed pixel data, so the policy reports its own output size.
+    const PolicyVariant policy = MakePolicy(info.layout);
+    const vk::DeviceSize size =
+        std::visit([&](const auto &p) { return p.getSize(info, m_transformInfo->imageFileInfo); }, policy);
 
     star::StarBuffers::Buffer builtBuffer;
     const auto makeResult = star::maker::buffer::MakeBuffer(device)
@@ -86,7 +85,7 @@ std::unique_ptr<star::StarBuffers::Buffer> Skybox::createStagingBuffer(star::cor
     return std::make_unique<star::StarBuffers::Buffer>(std::move(builtBuffer));
 }
 
-std::unique_ptr<star::StarTextures::Texture> Skybox::createFinal(
+std::unique_ptr<star::StarTextures::Texture> SkyboxTexture::createFinal(
     star::core::device::StarDevice &device, const std::vector<uint32_t> &transferQueueFamilyIndex) const
 {
     assert(m_transformInfo.has_value() && "prep() must resolve the transform info before createFinal()");
@@ -165,8 +164,8 @@ std::unique_ptr<star::StarTextures::Texture> Skybox::createFinal(
     return std::make_unique<star::StarTextures::Texture>(std::move(texture));
 }
 
-void Skybox::copyFromTransferSRCToDST(star::StarBuffers::Buffer &srcBuffer, star::StarTextures::Texture &dst,
-                                      vk::CommandBuffer &commandBuffer) const
+void SkyboxTexture::copyFromTransferSRCToDST(star::StarBuffers::Buffer &srcBuffer, star::StarTextures::Texture &dst,
+                                             vk::CommandBuffer &commandBuffer) const
 {
     assert(m_transformInfo.has_value() && "prep() must resolve the transform info before copyFromTransferSRCToDST()");
 
@@ -175,12 +174,12 @@ void Skybox::copyFromTransferSRCToDST(star::StarBuffers::Buffer &srcBuffer, star
                policy);
 }
 
-void Skybox::writeDataToStageBuffer(star::StarBuffers::Buffer &stagingBuffer) const
+void SkyboxTexture::writeDataToStageBuffer(star::StarBuffers::Buffer &stagingBuffer) const
 {
     assert(m_info.has_value() && "prep() must resolve the skybox info before writeDataToStageBuffer()");
 
     const PolicyVariant policy = MakePolicy(m_info->layout);
-    auto skyboxData = std::visit([&](const auto &p) { return p.readSkybox(m_info->name, *m_transformInfo); }, policy);
+    auto skyboxData = std::visit([&](const auto &p) { return p.readSkybox(m_texturePath, *m_transformInfo); }, policy);
     if (!skyboxData)
         STAR_THROW(skyboxData.error().what());
 
@@ -192,7 +191,7 @@ void Skybox::writeDataToStageBuffer(star::StarBuffers::Buffer &stagingBuffer) co
     stagingBuffer.unmap();
 }
 
-Skybox::PolicyVariant Skybox::MakePolicy(SkyboxLayout layout)
+SkyboxTexture::PolicyVariant SkyboxTexture::MakePolicy(SkyboxLayout layout)
 {
     switch (layout)
     {

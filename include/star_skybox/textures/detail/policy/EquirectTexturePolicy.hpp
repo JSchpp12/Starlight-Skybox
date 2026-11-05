@@ -31,6 +31,10 @@ class EquirectTexturePolicy
     /// @brief Describes the target texture: a square cube-compatible image with six face layers.
     SkyboxTextureSpec describeTexture(const SkyboxInfo &info, const star::ImageFileInfo &imageFileInfo) const;
 
+    /// @brief Byte size of the pixel data readSkybox() produces, i.e. the staging buffer size.
+    /// @details The transformer resamples the source into six faceSize x faceSize RGBA float faces.
+    vk::DeviceSize getSize(const SkyboxInfo &info, const star::ImageFileInfo &imageFileInfo) const;
+
     /// @brief Reads the skybox image file's pixel data reshaped for equirectangular sampling.
     std::expected<star::ExrData, star::io::ImageLoadException> readSkybox(
         const std::filesystem::path &path, const io::SkyboxTransformInfo &transformInfo) const;

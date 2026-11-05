@@ -10,7 +10,8 @@ namespace starlight::skybox
 /// @brief Projection layout of a skybox image.
 enum class SkyboxLayout : std::uint8_t
 {
-    Linear, // corelates to no transformations needed to represent texture
+    /// The image is transferred into the target texture as-is; no cube face transform is applied.
+    Linear,
     Equirect
 };
 
@@ -23,7 +24,8 @@ struct SkyboxInfo
     SkyboxLayout layout = SkyboxLayout::Equirect;
     /// Creation options for the cube texture built from the skybox image.
     SkyboxTextureOptions textureOptions{};
-    /// Name of the skybox texture file. Used as the source image and to derive debug names.
+    /// Label of the skybox: the source image's file name without extension or media-relative path. Used only for
+    /// debug names; the transferred image is always the one the code selected through MakeSkybox::setTexture.
     std::string name;
 };
 } // namespace starlight::skybox
