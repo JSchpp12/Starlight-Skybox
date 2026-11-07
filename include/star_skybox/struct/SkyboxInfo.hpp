@@ -1,11 +1,11 @@
 #pragma once
 
-#include "star_skybox/structs/SkyboxTextureOptions.hpp"
+#include "star_skybox/struct/SkyboxTextureOptions.hpp"
 
 #include <cstdint>
 #include <string>
 
-namespace starlight::skybox
+namespace star::skybox
 {
 /// @brief Projection layout of a skybox image.
 enum class SkyboxLayout : std::uint8_t
@@ -28,4 +28,4 @@ struct SkyboxInfo
     /// debug names; the transferred image is always the one the code selected through MakeSkybox::setTexture.
     std::string name;
 };
-} // namespace starlight::skybox
+} // namespace star::skybox

@@ -1,7 +1,9 @@
 #include "star_skybox/maker/MakeSkybox.hpp"
 
+#include "star_skybox/factory/SkyboxFactory.hpp"
 #include "star_skybox/io/SkyboxInfoReader.hpp"
-#include "star_skybox/maker/SkyboxFactory.hpp"
+#include "star_skybox/textures/detail/policy/CPUSampling.hpp"
+#include "star_skybox/textures/detail/policy/GPUSampling.hpp"
 
 #include <starlight/command/FileIO/ReadFromFile.hpp>
 #include <starlight/core/Exceptions.hpp>
@@ -15,9 +17,10 @@
 #include <memory>
 #include <utility>
 
-namespace starlight::skybox::maker
+namespace star::skybox::maker
 {
-using starlight::skybox::SkyboxInfo;
+using star::skybox::SkyboxInfo;
+
 static std::filesystem::path GetInfoPath(const std::string &texture)
 {
     std::filesystem::path infoPath{texture};
@@ -27,7 +30,8 @@ static std::filesystem::path GetInfoPath(const std::string &texture)
     return infoPath;
 }
 
-MakeSkybox::MakeSkybox(star::core::device::DeviceContext &deviceContext) : m_deviceContext(deviceContext)
+MakeSkybox::MakeSkybox(star::core::device::DeviceContext &deviceContext, star::skybox::SkyboxContext &skyboxContext)
+    : m_deviceContext(deviceContext), m_skyboxContext(skyboxContext)
 {
 }
 
@@ -37,13 +41,19 @@ MakeSkybox &MakeSkybox::setTexture(std::string texture)
     return *this;
 }
 
-MakeSkybox &MakeSkybox::setTextureHandling(SkyboxGPUTextureStorageApproach approach)
+MakeSkybox &MakeSkybox::useCPUSampling()
 {
-    m_textureHandling = approach;
+    m_useGpuSampling = false;
     return *this;
 }
 
-star::Handle MakeSkybox::make()
+MakeSkybox &MakeSkybox::useGPUSampling()
+{
+    m_useGpuSampling = true;
+    return *this;
+}
+
+SkyboxMakeResult MakeSkybox::make()
 {
     if (m_texture.empty())
         STAR_THROW("Skybox texture must be set before make() is called");
@@ -56,16 +66,22 @@ star::Handle MakeSkybox::make()
     const std::filesystem::path infoPath = GetInfoPath(m_texture);
     const std::filesystem::path texturePath{m_texture};
 
-    starlight::skybox::io::SkyboxInfoReader reader;
+    star::skybox::io::SkyboxInfoReader reader;
     auto skyboxInfo = std::make_shared<std::future<SkyboxInfo>>(reader.getFuture());
 
-    auto readPayload = star::job::tasks::io::ReadPayload<starlight::skybox::io::SkyboxInfoReader>{
+    auto readPayload = star::job::tasks::io::ReadPayload<star::skybox::io::SkyboxInfoReader>{
         .filePath = infoPath, .readFunction = std::move(reader)};
     auto readTask = star::job::tasks::io::CreateReadTask(std::move(readPayload));
     star::command::file_io::ReadFromFile readCmd{std::move(readTask)};
     m_deviceContext.getCmdBus().submit(readCmd);
 
-    return SkyboxFactory::MakeSkyboxGPUData(m_deviceContext.getDeviceID(), std::move(skyboxInfo),
-                                            graphicsQueue->getParentQueueFamilyIndex(), texturePath, m_textureHandling);
+    if (m_useGpuSampling)
+        return factory::MakeSkybox<star::skybox::TransferRequest::GPUSampling>(
+            m_deviceContext, m_skyboxContext, std::move(skyboxInfo), graphicsQueue->getParentQueueFamilyIndex(),
+            texturePath);
+
+    return factory::MakeSkybox<star::skybox::TransferRequest::CPUSampling>(
+        m_deviceContext, m_skyboxContext, std::move(skyboxInfo), graphicsQueue->getParentQueueFamilyIndex(),
+        texturePath);
 }
-} // namespace starlight::skybox::maker
+} // namespace star::skybox::maker

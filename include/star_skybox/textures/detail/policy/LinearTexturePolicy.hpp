@@ -3,8 +3,8 @@
 #include "StarBuffers/Buffer.hpp"
 #include "StarTextures/Texture.hpp"
 #include "star_skybox/io/SkyboxReader.hpp"
-#include "star_skybox/structs/SkyboxInfo.hpp"
-#include "star_skybox/structs/SkyboxTextureSpec.hpp"
+#include "star_skybox/struct/SkyboxInfo.hpp"
+#include "star_skybox/struct/SkyboxTextureSpec.hpp"
 #include "starlight/structs/ExrData.hpp"
 
 #include <expected>
@@ -12,9 +12,9 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace starlight::skybox::TransferRequest
+namespace star::skybox::TransferRequest
 {
-using starlight::skybox::SkyboxInfo;
+using star::skybox::SkyboxInfo;
 /// @brief Skybox transfer policy for linear textures.
 /// @details The skybox image is transferred into the target texture as-is, one image copy. The final texture is a
 /// single-layer 2D image matching the source image's resolution; no cube view is created.
@@ -48,4 +48,4 @@ class LinearTexturePolicy
                                    vk::CommandBuffer &commandBuffer,
                                    const io::SkyboxTransformInfo &transformInfo) const;
 };
-} // namespace starlight::skybox::TransferRequest
+} // namespace star::skybox::TransferRequest

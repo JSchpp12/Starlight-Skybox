@@ -16,37 +16,47 @@ if(NOT TARGET Starlight::starlight)
 endif()
 
 set(${PROJECT_NAME}_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/structs/SkyboxInfo.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/structs/SkyboxTextureOptions.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/structs/SkyboxTextureSpec.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/structs/SkyboxGPUTextureStorageApproach.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxInfo.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxTextureOptions.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxTextureSpec.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxComputeResources.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxConversionPipeline.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/EquirectPushConstants.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/context/SkyboxContext.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/detail/SkyboxTransferCore.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/json/SkyboxEnums_JSON.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/json/SkyboxInfo_JSON.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/io/SkyboxInfoReader.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/io/SkyboxReader.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/SelectSkyboxTextureFormat.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/SkyboxTextureCreation.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/CPUSampling.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/GPUSampling.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/EquirectTexturePolicy.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/EquirectCpuTexturePolicy.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/EquirectTextureTransformer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/LinearTexturePolicy.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/TransferRequest_SkyboxTexture.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/buffers/TransferRequest_SkyboxBuffer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/maker/MakeSkybox.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/maker/SkyboxFactory.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/primitive/SkyboxFactory.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/factory/SkyboxFactory.hpp
 )
 
 set(${PROJECT_NAME}_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/json/SkyboxEnums_JSON.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/json/SkyboxInfo_JSON.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/io/SkyboxInfoReader.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/TransferRequest_SkyboxTexture.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/SkyboxTextureCreation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/CPUSampling.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/GPUSampling.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/buffers/TransferRequest_SkyboxBuffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/EquirectTexturePolicy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/EquirectCpuTexturePolicy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/EquirectTextureTransformer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/LinearTexturePolicy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/detail/SkyboxTransferCore.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/maker/MakeSkybox.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/maker/SkyboxFactory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/primitive/SkyboxFactory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/context/SkyboxContext.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC
@@ -77,6 +87,7 @@ target_link_libraries(${PROJECT_NAME}
         starlight_common
         # JSON serialization is used in public headers (SkyboxInfo_JSON.hpp), so it must be PUBLIC.
         nlohmann_json::nlohmann_json
+        # Used by the CPU equirect -> cube transformer.
         TBB::tbb
 )
 

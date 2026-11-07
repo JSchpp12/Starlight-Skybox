@@ -1,14 +1,14 @@
 #pragma once
 
-#include "star_skybox/structs/SkyboxInfo.hpp"
-#include "star_skybox/structs/SkyboxTextureOptions.hpp"
+#include "star_skybox/struct/SkyboxInfo.hpp"
+#include "star_skybox/struct/SkyboxTextureOptions.hpp"
 
 #include <vulkan/vulkan.hpp>
 
-namespace starlight::skybox::detail
+namespace star::skybox::detail
 {
-using starlight::skybox::SkyboxFormatScaling;
-using starlight::skybox::SkyboxLayout;
+using star::skybox::SkyboxFormatScaling;
+using star::skybox::SkyboxLayout;
 /// @brief Selects the Vulkan format for a skybox texture from its layout and precision scale.
 /// @details All current skybox sources are HDR, so every layout maps to a floating-point format.
 inline vk::Format SelectFormat(const SkyboxLayout &layout, const SkyboxFormatScaling &formatScaling)
@@ -29,4 +29,4 @@ inline vk::Format SelectFormat(const SkyboxLayout &layout, const SkyboxFormatSca
 
     return vk::Format::eUndefined;
 }
-} // namespace starlight::skybox::detail
+} // namespace star::skybox::detail

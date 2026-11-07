@@ -1,6 +1,6 @@
 #include "star_skybox/textures/detail/policy/EquirectTextureTransformer.hpp"
 
-#include "star_skybox/structs/SkyboxInfo.hpp"
+#include "star_skybox/struct/SkyboxInfo.hpp"
 
 #include "starlight/core/Exceptions.hpp"
 #include "starlight/structs/ImageFileInfo.hpp"
@@ -14,7 +14,7 @@
 
 #include <glm/glm.hpp>
 
-namespace starlight::skybox
+namespace star::skybox
 {
 /// Number of cube faces; faces are generated in Vulkan's layer order (+X, -X, +Y, -Y, +Z, -Z).
 constexpr int kFaceCount = 6;
@@ -150,4 +150,4 @@ star::ExrData EquirectTextureTransformer::operator()(star::ExrData data, const S
 
     return star::ExrData(output, outputFloats);
 }
-} // namespace starlight::skybox
+} // namespace star::skybox

@@ -1,13 +1,13 @@
 #pragma once
 
-#include "star_skybox/structs/SkyboxInfo.hpp"
+#include "star_skybox/struct/SkyboxInfo.hpp"
 
 #include <filesystem>
 #include <future>
 
-namespace starlight::skybox::io
+namespace star::skybox::io
 {
-using starlight::skybox::SkyboxInfo;
+using star::skybox::SkyboxInfo;
 /// @brief Reads a SkyboxInfo description from a JSON file.
 class SkyboxInfoReader
 {
@@ -27,4 +27,4 @@ class SkyboxInfoReader
 
     std::promise<SkyboxInfo> m_skyboxInfo;
 };
-} // namespace starlight::skybox::io
+} // namespace star::skybox::io

@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace starlight::skybox
+namespace star::skybox
 {
 /// @brief Precision scale applied to the skybox texture's format.
 enum class SkyboxFormatScaling : std::uint8_t
@@ -19,4 +19,4 @@ struct SkyboxTextureOptions
     /// Precision scale applied to the texture format when the texture is created.
     SkyboxFormatScaling formatScaling = SkyboxFormatScaling::Full;
 };
-} // namespace starlight::skybox
+} // namespace star::skybox

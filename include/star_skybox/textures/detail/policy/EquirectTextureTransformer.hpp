@@ -7,7 +7,7 @@ namespace star
 struct ImageFileInfo;
 } // namespace star
 
-namespace starlight::skybox
+namespace star::skybox
 {
 struct SkyboxInfo;
 
@@ -29,4 +29,4 @@ class EquirectTextureTransformer
     star::ExrData operator()(star::ExrData data, const SkyboxInfo &skyboxInfo,
                              const star::ImageFileInfo &imageFileInfo) const;
 };
-} // namespace starlight::skybox
+} // namespace star::skybox

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "star_skybox/structs/SkyboxInfo.hpp"
+#include "star_skybox/struct/SkyboxInfo.hpp"
 
 #include <starlight/structs/ExrData.hpp>
 #include <starlight/structs/ImageFileInfo.hpp>
@@ -15,9 +15,9 @@
 #include <type_traits>
 #include <utility>
 
-namespace starlight::skybox::io
+namespace star::skybox::io
 {
-using starlight::skybox::SkyboxInfo;
+using star::skybox::SkyboxInfo;
 /// @brief Description of a skybox image and the metadata a layout transform needs to reinterpret it.
 struct SkyboxTransformInfo
 {
@@ -124,4 +124,4 @@ class SkyboxReader
     /// Stored by value; read() is const, so the transform's operator() must be const-callable.
     TransformStorage m_transform;
 };
-} // namespace starlight::skybox::io
+} // namespace star::skybox::io

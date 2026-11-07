@@ -10,7 +10,7 @@
 #include <cassert>
 #include <fstream>
 
-namespace starlight::skybox::io
+namespace star::skybox::io
 {
 int SkyboxInfoReader::operator()(const std::filesystem::path &filePath)
 {
@@ -34,4 +34,4 @@ SkyboxInfo SkyboxInfoReader::load(const std::filesystem::path &filePath) const
 
     return info;
 }
-} // namespace starlight::skybox::io
+} // namespace star::skybox::io
