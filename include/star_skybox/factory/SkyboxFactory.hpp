@@ -6,7 +6,9 @@
 #include "star_skybox/struct/SkyboxInfo.hpp"
 #include "star_skybox/textures/TransferRequest_SkyboxTexture.hpp"
 
+#include <starlight/command/transfer/SubmitTextureTransfer.hpp>
 #include <starlight/core/device/DeviceContext.hpp>
+#include <starlight/core/device/managers/Image.hpp>
 #include <starlight/managers/ManagerRenderResource.hpp>
 #include <starlight/primitive/CubeObject.hpp>
 #include <starlight/setup/RenderResourceSetup.hpp>
@@ -53,8 +55,8 @@ template <typename SamplingPolicy>
     star::setup::RenderResourceSetup::Builder setupBuilder{};
 
     const star::Handle resource =
-        MakeSkyboxGPUData<SamplingPolicy>(deviceContext, skyboxContext, std::move(skyboxInfo),
-                                          graphicsQueueFamilyIndex, std::move(texturePath), setupBuilder);
+        MakeSkyboxGPUData<SamplingPolicy>(deviceContext, skyboxContext, std::move(skyboxInfo), graphicsQueueFamilyIndex,
+                                          std::move(texturePath), setupBuilder);
 
     return SkyboxMakeResult{.resource = resource, .setup = std::move(setupBuilder).build()};
 }
@@ -86,18 +88,17 @@ template <typename SamplingPolicy>
         // the set later, and the per-make keepAlive frees it, so every pool operation stays on this thread.
         vk::Device device = deviceContext.getDevice().getVulkanDevice();
         const vk::DescriptorSet descriptorSet =
-            device.allocateDescriptorSets(
-                vk::DescriptorSetAllocateInfo().setDescriptorPool(pool).setSetLayouts(setLayout)).front();
+            device
+                .allocateDescriptorSets(
+                    vk::DescriptorSetAllocateInfo().setDescriptorPool(pool).setSetLayouts(setLayout))
+                .front();
 
         std::promise<std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string>>
             contributionPromise;
         setupBuilder.add(contributionPromise.get_future());
 
-        computeResources = SkyboxComputeResources::From(pipeline, pool, descriptorSet,
-                                                        std::move(contributionPromise));
+        computeResources = SkyboxComputeResources::From(pipeline, pool, descriptorSet, std::move(contributionPromise));
     }
-
-    std::optional<star::Handle> stagingBuffer{};
 
     std::unique_ptr<star::TransferRequest::Texture> request;
     if constexpr (computeSampling)
@@ -107,15 +108,19 @@ template <typename SamplingPolicy>
         request = std::make_unique<star::skybox::TransferRequest::SkyboxTexture<SamplingPolicy>>(
             std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath));
 
-    const star::Handle resource = star::ManagerRenderResource::addRequest(
-        deviceContext.getDeviceID(), std::move(request), nullptr, false, nullptr, &stagingBuffer);
+    // The TransferService registers the Image manager record and hands the request's slot to a transfer worker, which
+    // publishes the created texture into it. Readiness is the record's future, not a ManagerRenderResource flag.
+    star::command::transfer::SubmitTextureTransfer transfer{std::move(request)};
+    deviceContext.getCmdBus().submit(transfer);
+    const auto submission = transfer.getReply().get();
+    const star::Handle resource = submission.image;
 
     if constexpr (computeSampling)
     {
         // The staging buffer is manager-owned once adopted; release its handle once the recording submission has
         // completed. A linear asset under this policy has no compute conversion and therefore no staging handle.
         // The conversion layouts/pool are context-owned, so nothing else is released here.
-        const std::optional<star::Handle> bufferHandle = stagingBuffer;
+        const std::optional<star::Handle> bufferHandle = submission.stagingBuffer;
         setupBuilder.add(star::setup::RenderResourceSetup::ResourcePrepDefinition{
             .steps = {},
             .release = {.gateOnRecordingSubmission = true,
@@ -136,11 +141,10 @@ template <typename SamplingPolicy>
     // Explicitly sized depth state: depth test on, writes off, far-passing compare.
     // The remaining vk::PipelineDepthStencilStateCreateInfo fields (depth bounds test, stencil) default to disabled in
     // a default-constructed handle struct.
-    const vk::PipelineDepthStencilStateCreateInfo depthStencil =
-        vk::PipelineDepthStencilStateCreateInfo()
-            .setDepthTestEnable(VK_TRUE)
-            .setDepthWriteEnable(VK_FALSE)
-            .setDepthCompareOp(vk::CompareOp::eLessOrEqual);
+    const vk::PipelineDepthStencilStateCreateInfo depthStencil = vk::PipelineDepthStencilStateCreateInfo()
+                                                                     .setDepthTestEnable(VK_TRUE)
+                                                                     .setDepthWriteEnable(VK_FALSE)
+                                                                     .setDepthCompareOp(vk::CompareOp::eLessOrEqual);
 
     return star::primitive::CubeObject::OptionalRenderingOverrides{.cullMode = vk::CullModeFlagBits::eNone,
                                                                    .depthStencil = depthStencil};

@@ -106,9 +106,8 @@ template <typename SamplingPolicy> class SkyboxTexture : public star::TransferRe
         m_sampling.publishContribution();
     }
 
-    virtual void publishFailure(const std::string &message) override
+    virtual void onTransferFailed(const std::string &message) override
     {
-        star::TransferRequest::Texture::publishFailure(message);
         m_sampling.publishFailure(message);
     }
 
