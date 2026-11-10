@@ -12,9 +12,10 @@ namespace star::skybox::TransferRequest
 using star::skybox::SkyboxInfo;
 
 SkyboxBuffer::SkyboxBuffer(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex,
-                           std::filesystem::path texturePath)
-    // A storage buffer carries the CPU-reshaped cube faces, matching the historical buffer path.
-    : m_core(std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath), false)
+                           std::filesystem::path texturePath, bool computeEquirect)
+    // computeEquirect=true stages the raw equirect pixels for the GPU conversion dispatch; false carries CPU-reshaped
+    // cube faces.
+    : m_core(std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath), computeEquirect)
 {
 }
 

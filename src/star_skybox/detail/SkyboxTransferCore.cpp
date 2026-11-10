@@ -68,9 +68,8 @@ vk::DeviceSize SkyboxTransferCore::stagingSize() const
 
 vk::BufferUsageFlags SkyboxTransferCore::stagingUsage() const
 {
-    // Compute-converted pixels are read by the dispatch as a storage buffer; everything else is a transfer source.
-    return usesComputeConversion() ? vk::BufferUsageFlags{vk::BufferUsageFlagBits::eStorageBuffer}
-                                   : vk::BufferUsageFlags{vk::BufferUsageFlagBits::eTransferSrc};
+    // Staging is only ever a copy source; the conversion dispatch reads the separate device-local buffer.
+    return vk::BufferUsageFlags{vk::BufferUsageFlagBits::eTransferSrc};
 }
 
 SkyboxTextureSpec SkyboxTransferCore::textureSpec() const

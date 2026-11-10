@@ -12,8 +12,6 @@
 namespace star::skybox::TransferRequest
 {
 /// @brief Sampling policy for a cube texture the transfer queue writes and the fragment shader samples.
-/// @details The transfer copy owns the write, so the image needs transfer-dst usage and concurrent sharing with the
-/// transfer queue family. No render-side work is produced.
 class CPUSampling
 {
   public:
@@ -26,8 +24,7 @@ class CPUSampling
     /// @param stagingBuffer Unused; the transfer worker owns it for the duration of the copy.
     [[nodiscard]] std::unique_ptr<star::StarTextures::Texture> createFinal(
         star::core::device::StarDevice &device, const star::skybox::detail::SkyboxTransferCore &core,
-        const std::vector<uint32_t> &transferQueueFamilyIndices,
-        star::StarBuffers::Buffer *stagingBuffer) const;
+        const std::vector<uint32_t> &transferQueueFamilyIndices, star::StarBuffers::Buffer *conversionBuffer) const;
 
     /// @brief No compute-side contribution exists for this policy.
     void publishContribution()

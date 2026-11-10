@@ -49,7 +49,6 @@ class SkyboxTransferCore
     /// when the CPU transformer reshapes them. Linear images ignore it.
     SkyboxTransferCore(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex,
                        std::filesystem::path texturePath, bool computeEquirect);
-
     SkyboxTransferCore(SkyboxTransferCore &&) = default;
     SkyboxTransferCore &operator=(SkyboxTransferCore &&) = default;
     SkyboxTransferCore(const SkyboxTransferCore &) = delete;
@@ -80,9 +79,8 @@ class SkyboxTransferCore
     /// @brief Byte size of the staging buffer: the raw source pixels (equirect) or the pass-through pixels (linear).
     vk::DeviceSize stagingSize() const;
 
-    /// @brief Usage flags the staging buffer needs for this layout.
-    /// @details An equirect staging buffer is read as an SSBO by the conversion dispatch; a linear one is a plain
-    /// transfer source.
+    /// @brief Usage flags the staging buffer needs. It is always a transfer source; the conversion dispatch reads a
+    /// separate device-local conversion buffer.
     vk::BufferUsageFlags stagingUsage() const;
 
     /// @brief Describes the GPU texture this layout produces.

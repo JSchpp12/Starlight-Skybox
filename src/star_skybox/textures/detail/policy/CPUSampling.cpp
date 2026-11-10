@@ -6,9 +6,9 @@ namespace star::skybox::TransferRequest
 {
 std::unique_ptr<star::StarTextures::Texture> CPUSampling::createFinal(
     star::core::device::StarDevice &device, const star::skybox::detail::SkyboxTransferCore &core,
-    const std::vector<uint32_t> &transferQueueFamilyIndices, star::StarBuffers::Buffer *stagingBuffer) const
+    const std::vector<uint32_t> &transferQueueFamilyIndices, star::StarBuffers::Buffer *conversionBuffer) const
 {
-    (void)stagingBuffer;
+    (void)conversionBuffer;
 
     // The transfer queue writes the image, so it must be reachable from both the graphics and the transfer families.
     std::vector<uint32_t> queueFamilyIndices{core.graphicsQueueFamilyIndex()};

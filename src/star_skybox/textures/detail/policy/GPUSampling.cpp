@@ -44,7 +44,7 @@ GPUSampling::GPUSampling(SkyboxComputeResources computeResources) : m_compute(st
 
 std::unique_ptr<star::StarTextures::Texture> GPUSampling::createFinal(
     star::core::device::StarDevice &device, const star::skybox::detail::SkyboxTransferCore &core,
-    const std::vector<uint32_t> &transferQueueFamilyIndices, star::StarBuffers::Buffer *stagingBuffer) const
+    const std::vector<uint32_t> &transferQueueFamilyIndices, star::StarBuffers::Buffer *conversionBuffer) const
 {
     if (!core.usesComputeConversion())
     {
@@ -70,7 +70,7 @@ std::unique_ptr<star::StarTextures::Texture> GPUSampling::createFinal(
     }
 
     assert(m_compute.isValid() && "The compute sampling policy requires resources from the maker");
-    assert(stagingBuffer != nullptr && "The conversion dispatch needs the staged equirect pixels");
+    assert(conversionBuffer != nullptr && "The conversion dispatch needs the device-local equirect buffer");
 
     // Only the graphics-family dispatch touches the image, so it needs storage usage and no sharing.
     auto textureResult = detail::CreateSampledTexture(
@@ -85,12 +85,12 @@ std::unique_ptr<star::StarTextures::Texture> GPUSampling::createFinal(
         STAR_THROW("Skybox texture options are incomplete: face_size is required");
 
     // The texture holds both the cube sampling view and the 2D-array view the conversion dispatch writes through.
-    const vk::ImageView storageView =
-        texture.getImageView().get(texture.getBaseFormat(), vk::ImageViewType::e2DArray);
+    const vk::ImageView storageView = texture.getImageView().get(texture.getBaseFormat(), vk::ImageViewType::e2DArray);
 
     // The set was allocated by the maker from the shared pool; fill it with the resources that only exist here. Host
     // access to the set is ordered before recording by the contribution promise. The pool itself is not touched here.
-    const vk::DescriptorBufferInfo bufferInfo{stagingBuffer->getVulkanBuffer(), 0, stagingBuffer->getBufferSize()};
+    const vk::DescriptorBufferInfo bufferInfo{conversionBuffer->getVulkanBuffer(), 0,
+                                              conversionBuffer->getBufferSize()};
     const vk::DescriptorImageInfo imageInfo{vk::Sampler{}, storageView, vk::ImageLayout::eGeneral};
 
     std::array<vk::WriteDescriptorSet, 2> writes{vk::WriteDescriptorSet()
@@ -157,8 +157,7 @@ void GPUSampling::publishContribution()
         std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string>{
             star::setup::RenderResourceSetup::ResourcePrepDefinition{
                 .steps = std::move(m_pendingSteps),
-                .release = {.gateOnRecordingSubmission = true,
-                            .keepAlive = std::move(m_pendingKeepAlive)}}});
+                .release = {.gateOnRecordingSubmission = true, .keepAlive = std::move(m_pendingKeepAlive)}}});
     m_compute.contributionPromise.reset();
 }
 

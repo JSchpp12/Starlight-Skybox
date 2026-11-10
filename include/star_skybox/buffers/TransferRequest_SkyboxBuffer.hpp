@@ -15,9 +15,6 @@ namespace star::skybox::TransferRequest
 {
 using star::skybox::SkyboxInfo;
 /// @brief Transfer request uploading a skybox image into a storage buffer.
-/// @details Shares its sidecar/image handling with SkyboxTexture, so both requests agree on layout selection and pixel
-/// data. The only difference is the final resource: a GPU buffer rather than a sampled texture, so the transfer queue
-/// performs a plain buffer copy and no image layout transition happens.
 class SkyboxBuffer : public star::TransferRequest::Buffer
 {
   public:
@@ -25,7 +22,7 @@ class SkyboxBuffer : public star::TransferRequest::Buffer
     /// @param graphicsQueueFamilyIndex Family index of the engine's graphics queue.
     /// @param texturePath Path of the source image file the code selected; read for header info and pixel data.
     SkyboxBuffer(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex,
-                 std::filesystem::path texturePath);
+                 std::filesystem::path texturePath, bool computeEquirect = false);
 
     SkyboxBuffer(SkyboxBuffer &&) = default;
     SkyboxBuffer &operator=(SkyboxBuffer &&) = default;

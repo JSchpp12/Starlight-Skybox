@@ -5,6 +5,7 @@
 #include "star_skybox/textures/detail/policy/CPUSampling.hpp"
 #include "star_skybox/textures/detail/policy/GPUSampling.hpp"
 
+#include <starlight/core/Exceptions.hpp>
 #include <starlight/virtual/TransferRequest_Texture.hpp>
 
 #include <concepts>
@@ -21,34 +22,28 @@ namespace star::skybox::TransferRequest
 using star::skybox::SkyboxInfo;
 
 /// @brief Transfer request creating a skybox cube texture from a single image file.
-/// @details The loaded skybox description's layout selects the transfer policy (linear or equirectangular). The
-/// sampling policy selects how the cube image is written and sampled: by the transfer queue (CPUSampling) or by a
-/// graphics-family compute dispatch (GPUSampling). The source image is always the file the code selected through
-/// MakeSkybox::setTexture; the sidecar's "name" is only a debug label.
-/// @tparam SamplingPolicy How the cube image is written and sampled.
 template <typename SamplingPolicy> class SkyboxTexture : public star::TransferRequest::Texture
 {
   public:
     /// @brief Creates a request whose sampling policy needs no render-side resources (CPU sampling).
     SkyboxTexture(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex,
-                  std::filesystem::path texturePath)
+                  std::filesystem::path texturePath, star::StarBuffers::Buffer *equirectBuffer = nullptr)
         requires std::default_initializable<SamplingPolicy>
         : m_core(std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath),
                  SamplingPolicy::usesComputeConversion),
-          m_sampling()
+          m_sampling(), m_equirectBuffer(equirectBuffer)
     {
-        takesStagingOwnership = SamplingPolicy::usesComputeConversion;
     }
 
     /// @brief Creates a request whose sampling policy is constructed from the maker's conversion resources.
     SkyboxTexture(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex,
-                  std::filesystem::path texturePath, SkyboxComputeResources computeResources)
+                  std::filesystem::path texturePath, SkyboxComputeResources computeResources,
+                  star::StarBuffers::Buffer *equirectBuffer = nullptr)
         requires std::constructible_from<SamplingPolicy, SkyboxComputeResources>
         : m_core(std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath),
                  SamplingPolicy::usesComputeConversion),
-          m_sampling(std::move(computeResources))
+          m_sampling(std::move(computeResources)), m_equirectBuffer(equirectBuffer)
     {
-        takesStagingOwnership = SamplingPolicy::usesComputeConversion;
     }
 
     SkyboxTexture(SkyboxTexture &&) = default;
@@ -72,24 +67,34 @@ template <typename SamplingPolicy> class SkyboxTexture : public star::TransferRe
     virtual std::unique_ptr<star::StarBuffers::Buffer> createStagingBuffer(
         star::core::device::StarDevice &device) const override
     {
-        auto stagingBuffer = m_core.createStagingBuffer(device);
-        // Remember the buffer so the compute descriptor set can bind it; the worker keeps ownership until it hands it
-        // back through adoptStagingBuffer().
-        m_stagingBuffer = stagingBuffer.get();
+        // The compute conversion reads the separate equirect buffer; there is nothing to stage for the image.
+        if (m_core.usesComputeConversion())
+            return nullptr;
 
-        return stagingBuffer;
+        return m_core.createStagingBuffer(device);
     }
 
     virtual std::unique_ptr<star::StarTextures::Texture> createFinal(
         star::core::device::StarDevice &device, const std::vector<uint32_t> &transferQueueFamilyIndex) const override
     {
-        return m_sampling.createFinal(device, m_core, transferQueueFamilyIndex, m_stagingBuffer);
+        star::StarBuffers::Buffer *equirectBuffer = nullptr;
+        if (m_core.usesComputeConversion())
+        {
+            if (m_equirectBuffer == nullptr)
+                STAR_THROW("Skybox compute conversion requires an equirect buffer request");
+
+            equirectBuffer = m_equirectBuffer;
+        }
+
+        return m_sampling.createFinal(device, m_core, transferQueueFamilyIndex, equirectBuffer);
     }
 
     virtual void copyFromTransferSRCToDST(star::StarBuffers::Buffer &srcBuffer, star::StarTextures::Texture &dst,
                                           vk::CommandBuffer &commandBuffer) const override
     {
-        m_core.copyToTexture(srcBuffer, dst, commandBuffer);
+        // The compute path has no staging buffer and no image copy; its dispatch is recorded by the setup.
+        if (!m_core.usesComputeConversion())
+            m_core.copyToTexture(srcBuffer, dst, commandBuffer);
     }
 
     virtual void writeDataToStageBuffer(star::StarBuffers::Buffer &stagingBuffer) const override
@@ -97,11 +102,8 @@ template <typename SamplingPolicy> class SkyboxTexture : public star::TransferRe
         m_core.writeDataToStageBuffer(stagingBuffer);
     }
 
-    virtual void adoptStagingBuffer(star::StarBuffers::Buffer &stagingBuffer) override
+    virtual void onTransferComplete() override
     {
-        // The manager owns the buffer; the setup releases its handle after the recorded work has completed.
-        star::TransferRequest::Texture::adoptStagingBuffer(stagingBuffer);
-
         // Publish this worker's steps, if the sampling policy produced any.
         m_sampling.publishContribution();
     }
@@ -114,7 +116,7 @@ template <typename SamplingPolicy> class SkyboxTexture : public star::TransferRe
   private:
     detail::SkyboxTransferCore m_core;
     SamplingPolicy m_sampling;
-    /// Non-owning: the worker owns the staging buffer between createStagingBuffer() and adoption.
-    mutable star::StarBuffers::Buffer *m_stagingBuffer = nullptr;
+    /// Buffer-manager-owned equirect buffer the conversion dispatch reads. Input only; the request never owns it.
+    star::StarBuffers::Buffer *m_equirectBuffer = nullptr;
 };
 } // namespace star::skybox::TransferRequest

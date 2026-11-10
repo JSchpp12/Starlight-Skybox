@@ -1,11 +1,13 @@
 #pragma once
 
+#include "star_skybox/buffers/TransferRequest_SkyboxBuffer.hpp"
 #include "star_skybox/context/SkyboxContext.hpp"
 #include "star_skybox/maker/MakeSkybox.hpp"
 #include "star_skybox/struct/SkyboxComputeResources.hpp"
 #include "star_skybox/struct/SkyboxInfo.hpp"
 #include "star_skybox/textures/TransferRequest_SkyboxTexture.hpp"
 
+#include <starlight/command/transfer/SubmitBufferTransfer.hpp>
 #include <starlight/command/transfer/SubmitTextureTransfer.hpp>
 #include <starlight/core/device/DeviceContext.hpp>
 #include <starlight/core/device/managers/Image.hpp>
@@ -29,13 +31,23 @@ namespace star::skybox::factory
 using star::skybox::SkyboxInfo;
 using star::skybox::maker::SkyboxMakeResult;
 
+/// @brief Resource handle and transfer-completion semaphore produced by a skybox transfer submission.
+struct SkyboxTransferResult
+{
+    star::Handle resource{};
+    star::StarSemaphore transfer{};
+    star::Handle buffer{};
+    std::optional<star::StarSemaphore> bufferTransfer{};
+};
+
 /// @brief Creates and submits the transfer request for the selected sampling policy (defined below).
 template <typename SamplingPolicy>
-[[nodiscard]] star::Handle MakeSkyboxGPUData(star::core::device::DeviceContext &deviceContext,
-                                             star::skybox::SkyboxContext &skyboxContext,
-                                             std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo,
-                                             uint32_t graphicsQueueFamilyIndex, std::filesystem::path texturePath,
-                                             star::setup::RenderResourceSetup::Builder &setupBuilder);
+[[nodiscard]] SkyboxTransferResult MakeSkyboxGPUData(star::core::device::DeviceContext &deviceContext,
+                                                     star::skybox::SkyboxContext &skyboxContext,
+                                                     std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo,
+                                                     uint32_t graphicsQueueFamilyIndex,
+                                                     std::filesystem::path texturePath,
+                                                     star::setup::RenderResourceSetup::Builder &setupBuilder);
 
 /// @brief Builds the skybox resource and the setup the consuming object records.
 /// @details Selects the transfer route from the sampling policy: GPU sampling reuses the context's conversion pipeline
@@ -54,11 +66,15 @@ template <typename SamplingPolicy>
 {
     star::setup::RenderResourceSetup::Builder setupBuilder{};
 
-    const star::Handle resource =
+    const SkyboxTransferResult result =
         MakeSkyboxGPUData<SamplingPolicy>(deviceContext, skyboxContext, std::move(skyboxInfo), graphicsQueueFamilyIndex,
                                           std::move(texturePath), setupBuilder);
 
-    return SkyboxMakeResult{.resource = resource, .setup = std::move(setupBuilder).build()};
+    return SkyboxMakeResult{.resource = result.resource,
+                            .transfer = result.transfer,
+                            .buffer = result.buffer,
+                            .bufferTransfer = result.bufferTransfer,
+                            .setup = std::move(setupBuilder).build()};
 }
 
 /// @brief Creates and submits the transfer request for the selected sampling policy.
@@ -67,11 +83,12 @@ template <typename SamplingPolicy>
 /// @param setupBuilder Receives the definitions the setup interpreter will record.
 /// @return Handle to the transferred resource.
 template <typename SamplingPolicy>
-[[nodiscard]] star::Handle MakeSkyboxGPUData(star::core::device::DeviceContext &deviceContext,
-                                             star::skybox::SkyboxContext &skyboxContext,
-                                             std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo,
-                                             uint32_t graphicsQueueFamilyIndex, std::filesystem::path texturePath,
-                                             star::setup::RenderResourceSetup::Builder &setupBuilder)
+[[nodiscard]] SkyboxTransferResult MakeSkyboxGPUData(star::core::device::DeviceContext &deviceContext,
+                                                     star::skybox::SkyboxContext &skyboxContext,
+                                                     std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo,
+                                                     uint32_t graphicsQueueFamilyIndex,
+                                                     std::filesystem::path texturePath,
+                                                     star::setup::RenderResourceSetup::Builder &setupBuilder)
 {
     constexpr bool computeSampling = SamplingPolicy::usesComputeConversion;
 
@@ -100,13 +117,48 @@ template <typename SamplingPolicy>
         computeResources = SkyboxComputeResources::From(pipeline, pool, descriptorSet, std::move(contributionPromise));
     }
 
+    const SkyboxInfo info = skyboxInfo->get();
+    const bool needsEquirectBuffer = computeSampling && info.layout == SkyboxLayout::Equirect;
+
+    // Both requests need the resolved description, but a std::future can only be consumed once. Give each request
+    // its own already-ready future carrying the same value.
+    const auto makeReadyInfo = [&info]() {
+        std::promise<SkyboxInfo> promise;
+        auto future = promise.get_future();
+        promise.set_value(info);
+        return std::make_shared<std::future<SkyboxInfo>>(std::move(future));
+    };
+
+    std::optional<StarSemaphore> bufferTransfer;
+    star::Handle bufferHandle{};
+    star::StarBuffers::Buffer *equirectBuffer = nullptr;
+    if (needsEquirectBuffer)
+    {
+        star::command::transfer::SubmitBufferTransfer bufferCmd{
+            std::make_unique<star::skybox::TransferRequest::SkyboxBuffer>(makeReadyInfo(), graphicsQueueFamilyIndex,
+                                                                          texturePath, true)};
+        deviceContext.getCmdBus().submit(bufferCmd);
+        const auto bufferResult = bufferCmd.getReply().get();
+        bufferTransfer = bufferResult.semaphore;
+        bufferHandle = bufferResult.buffer;
+
+        auto &bufferManager = deviceContext.getGraphicsManagers().bufferManager;
+        bufferManager.waitForReady(bufferResult.buffer);
+        auto *record = bufferManager.get(bufferResult.buffer);
+        if (record == nullptr)
+            STAR_THROW("Skybox equirect buffer was not published by the transfer worker");
+
+        equirectBuffer = record->getBuffer();
+    }
+
     std::unique_ptr<star::TransferRequest::Texture> request;
     if constexpr (computeSampling)
         request = std::make_unique<star::skybox::TransferRequest::SkyboxTexture<SamplingPolicy>>(
-            std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath), std::move(computeResources));
+            makeReadyInfo(), graphicsQueueFamilyIndex, std::move(texturePath), std::move(computeResources),
+            equirectBuffer);
     else
         request = std::make_unique<star::skybox::TransferRequest::SkyboxTexture<SamplingPolicy>>(
-            std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath));
+            makeReadyInfo(), graphicsQueueFamilyIndex, std::move(texturePath));
 
     // The TransferService registers the Image manager record and hands the request's slot to a transfer worker, which
     // publishes the created texture into it. Readiness is the record's future, not a ManagerRenderResource flag.
@@ -115,22 +167,10 @@ template <typename SamplingPolicy>
     const auto submission = transfer.getReply().get();
     const star::Handle resource = submission.image;
 
-    if constexpr (computeSampling)
-    {
-        // The staging buffer is manager-owned once adopted; release its handle once the recording submission has
-        // completed. A linear asset under this policy has no compute conversion and therefore no staging handle.
-        // The conversion layouts/pool are context-owned, so nothing else is released here.
-        const std::optional<star::Handle> bufferHandle = submission.stagingBuffer;
-        setupBuilder.add(star::setup::RenderResourceSetup::ResourcePrepDefinition{
-            .steps = {},
-            .release = {.gateOnRecordingSubmission = true,
-                        .keepAlive = [bufferHandle](star::core::device::DeviceContext &context) {
-                            if (bufferHandle.has_value())
-                                context.getBufferManager().deleteRequest(context.getDevice(), *bufferHandle);
-                        }}});
-    }
-
-    return resource;
+    return SkyboxTransferResult{.resource = resource,
+                                .transfer = submission.semaphore,
+                                .buffer = bufferHandle,
+                                .bufferTransfer = bufferTransfer};
 }
 
 /// @brief Render overrides for rendering full-sky geometry (the skybox class of objects).

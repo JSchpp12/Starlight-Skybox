@@ -1,9 +1,11 @@
 #pragma once
 
 #include <starlight/setup/RenderResourceSetup.hpp>
+#include <starlight/wrappers/graphics/StarSemaphore.hpp>
 
 #include <star_common/Handle.hpp>
 
+#include <optional>
 #include <string>
 
 namespace star::core::device
@@ -19,13 +21,15 @@ class SkyboxContext;
 namespace star::skybox::maker
 {
 /// @brief Result of building a skybox: the GPU resource and the one-shot setup the render phase must record.
-/// @details The setup is complete at composition time: for a cube texture it already owns the conversion pipeline and
-/// the definitions for its cleanup, plus a future the transfer worker fills with the conversion steps and its own
-/// view/pool cleanup. The setup is empty for the storage-buffer path. Pass it to the object that samples the texture
-/// (e.g. the CubeObject constructor).
 struct SkyboxMakeResult
 {
     star::Handle resource{};
+    /// Image transfer completion semaphore.
+    star::StarSemaphore transfer{};
+    /// Buffer-manager handle of the equirect source buffer, when a compute conversion is used.
+    star::Handle buffer{};
+    /// Equirect source-buffer transfer completion semaphore, when a compute conversion is used.
+    std::optional<star::StarSemaphore> bufferTransfer{};
     star::setup::RenderResourceSetup setup{};
 };
 

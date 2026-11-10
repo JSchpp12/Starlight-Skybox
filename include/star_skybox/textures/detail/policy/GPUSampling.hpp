@@ -28,11 +28,11 @@ class GPUSampling
     explicit GPUSampling(SkyboxComputeResources computeResources);
 
     /// @brief Creates the sampled cube texture and, for an equirectangular source, the conversion work.
-    /// @param stagingBuffer Raw equirect staging buffer the dispatch reads; required for the conversion path.
+    /// @param conversionBuffer Device-local equirect buffer the dispatch reads; required for the conversion path.
     [[nodiscard]] std::unique_ptr<star::StarTextures::Texture> createFinal(
         star::core::device::StarDevice &device, const star::skybox::detail::SkyboxTransferCore &core,
         const std::vector<uint32_t> &transferQueueFamilyIndices,
-        star::StarBuffers::Buffer *stagingBuffer) const;
+        star::StarBuffers::Buffer *conversionBuffer) const;
 
     /// @brief Publishes the conversion steps and their cleanup once the staging buffer has been handed over.
     void publishContribution();
