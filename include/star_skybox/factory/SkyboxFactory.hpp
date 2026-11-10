@@ -11,6 +11,7 @@
 #include <starlight/command/transfer/SubmitTextureTransfer.hpp>
 #include <starlight/core/device/DeviceContext.hpp>
 #include <starlight/core/device/managers/Image.hpp>
+#include <starlight/core/logging/LoggingFactory.hpp>
 #include <starlight/managers/ManagerRenderResource.hpp>
 #include <starlight/primitive/CubeObject.hpp>
 #include <starlight/setup/RenderResourceSetup.hpp>
@@ -47,7 +48,7 @@ template <typename SamplingPolicy>
                                                      std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo,
                                                      uint32_t graphicsQueueFamilyIndex,
                                                      std::filesystem::path texturePath,
-                                                     star::setup::RenderResourceSetup::Builder &setupBuilder);
+                                                     star::setup::RenderResourceSetup::PrepRequest &prep);
 
 /// @brief Builds the skybox resource and the setup the consuming object records.
 /// @details Selects the transfer route from the sampling policy: GPU sampling reuses the context's conversion pipeline
@@ -64,17 +65,16 @@ template <typename SamplingPolicy>
                                           std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo,
                                           uint32_t graphicsQueueFamilyIndex, std::filesystem::path texturePath)
 {
-    star::setup::RenderResourceSetup::Builder setupBuilder{};
+    star::setup::RenderResourceSetup::PrepRequest prep{};
 
-    const SkyboxTransferResult result =
-        MakeSkyboxGPUData<SamplingPolicy>(deviceContext, skyboxContext, std::move(skyboxInfo), graphicsQueueFamilyIndex,
-                                          std::move(texturePath), setupBuilder);
+    const SkyboxTransferResult result = MakeSkyboxGPUData<SamplingPolicy>(
+        deviceContext, skyboxContext, std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath), prep);
 
     return SkyboxMakeResult{.resource = result.resource,
                             .transfer = result.transfer,
                             .buffer = result.buffer,
                             .bufferTransfer = result.bufferTransfer,
-                            .setup = std::move(setupBuilder).build()};
+                            .initializer = star::skybox::SkyboxInitializer{std::move(prep)}};
 }
 
 /// @brief Creates and submits the transfer request for the selected sampling policy.
@@ -88,7 +88,7 @@ template <typename SamplingPolicy>
                                                      std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo,
                                                      uint32_t graphicsQueueFamilyIndex,
                                                      std::filesystem::path texturePath,
-                                                     star::setup::RenderResourceSetup::Builder &setupBuilder)
+                                                     star::setup::RenderResourceSetup::PrepRequest &prep)
 {
     constexpr bool computeSampling = SamplingPolicy::usesComputeConversion;
 
@@ -110,11 +110,43 @@ template <typename SamplingPolicy>
                     vk::DescriptorSetAllocateInfo().setDescriptorPool(pool).setSetLayouts(setLayout))
                 .front();
 
+        auto prepState = std::make_shared<star::skybox::SkyboxPrepState>();
         std::promise<std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string>>
             contributionPromise;
-        setupBuilder.add(contributionPromise.get_future());
+        prepState->future = contributionPromise.get_future();
 
-        computeResources = SkyboxComputeResources::From(pipeline, pool, descriptorSet, std::move(contributionPromise));
+        computeResources =
+            SkyboxComputeResources::From(pipeline, pool, descriptorSet, std::move(contributionPromise), prepState);
+
+        prep.prepare = [prepState](const star::core::device::DeviceContext &,
+                                   star::setup::RenderResourceSetup::ResourcePrepDefinition &out) {
+            if (prepState->resolved)
+                return;
+
+            // Blocks until the transfer worker publishes the definition. The compute pipeline is resolved later, at
+            // record time, when the main loop has pumped the pipeline build's completion task.
+            std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string> result;
+            try
+            {
+                result = prepState->future.get();
+            }
+            catch (const std::future_error &e)
+            {
+                prepState->resolved = true;
+                star::core::logging::warning("Skybox conversion producer was destroyed without publishing: ", e.what());
+                return;
+            }
+            prepState->resolved = true;
+
+            if (!result)
+            {
+                star::core::logging::warning("Skybox conversion contribution failed: ", result.error(),
+                                             ". Recording without it.");
+                return;
+            }
+
+            out = std::move(*result);
+        };
     }
 
     const SkyboxInfo info = skyboxInfo->get();

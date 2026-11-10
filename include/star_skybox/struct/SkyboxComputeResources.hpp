@@ -8,12 +8,21 @@
 
 #include <expected>
 #include <future>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vulkan/vulkan.hpp>
 
 namespace star::skybox
 {
+/// @brief Shared state between the render-thread prepare callback and the worker-composed record steps.
+/// @details The worker publishes the definition through `future`; the prepare callback waits for it.
+struct SkyboxPrepState
+{
+    std::future<std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string>> future;
+    bool resolved{false};
+};
+
 /// @brief Per-make inputs for the equirectangular -> cube conversion dispatch.
 /// @details Composed by the factory on the calling thread from the app-held SkyboxContext. The handles are copies of
 /// the context's engine-lifetime resources, so the transfer worker never dereferences the context.
@@ -34,26 +43,29 @@ struct SkyboxComputeResources
     /// Producer side of the worker contribution. The maker puts the matching future into the setup it returns.
     /// @details The produced value is the definition, or a failure reason; a failed producer publishes an unexpected so
     /// the setup can log it and continue with a blank resource.
-    std::optional<
-        std::promise<std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string>>>
+    std::optional<std::promise<std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string>>>
         contributionPromise{};
+    /// @brief State shared with the prepare callback and the dispatch record step.
+    std::shared_ptr<SkyboxPrepState> prepState{};
 
     /// @brief Builds the per-make inputs from the context's cached pipeline/pool and the allocated set.
     static SkyboxComputeResources From(
         const SkyboxConversionPipeline &pipeline, vk::DescriptorPool pool, vk::DescriptorSet set,
-        std::promise<std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string>> promise)
+        std::promise<std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string>> promise,
+        std::shared_ptr<SkyboxPrepState> prepState)
     {
         return SkyboxComputeResources{.pipeline = pipeline.pipeline,
                                       .pipelineLayout = pipeline.pipelineLayout,
                                       .descriptorPool = pool,
                                       .descriptorSet = set,
-                                      .contributionPromise = std::move(promise)};
+                                      .contributionPromise = std::move(promise),
+                                      .prepState = std::move(prepState)};
     }
 
     bool isValid() const
     {
         return pipeline.isInitialized() && pipelineLayout && descriptorPool && descriptorSet &&
-               contributionPromise.has_value();
+               contributionPromise.has_value() && prepState != nullptr;
     }
 };
 } // namespace star::skybox

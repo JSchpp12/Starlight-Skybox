@@ -39,6 +39,7 @@ set(${PROJECT_NAME}_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/TransferRequest_SkyboxTexture.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/buffers/TransferRequest_SkyboxBuffer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/maker/MakeSkybox.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/maker/SkyboxInitializer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/factory/SkyboxFactory.hpp
 )
 

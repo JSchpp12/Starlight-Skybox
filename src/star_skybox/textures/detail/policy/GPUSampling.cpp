@@ -126,24 +126,24 @@ std::unique_ptr<star::StarTextures::Texture> GPUSampling::createFinal(
     using Setup = star::setup::RenderResourceSetup;
 
     // Held until the staging buffer is handed over after submission, then published as one contribution.
-    m_pendingSteps.emplace_back(Setup::ImageLayoutChange{.image = texture.getVulkanImage(),
-                                                         .from = vk::ImageLayout::eUndefined,
-                                                         .to = vk::ImageLayout::eGeneral,
-                                                         .range = CubeColorRange()});
+    m_pendingSteps.push_back(Setup::makeStep(Setup::ImageLayoutChange{.image = texture.getVulkanImage(),
+                                                                      .from = vk::ImageLayout::eUndefined,
+                                                                      .to = vk::ImageLayout::eGeneral,
+                                                                      .range = CubeColorRange()}));
 
-    Setup::ComputeDispatch dispatch{};
-    dispatch.pipeline = m_compute.pipeline;
-    dispatch.descriptorSet = m_compute.descriptorSet;
-    dispatch.layout = m_compute.pipelineLayout;
-    dispatch.pushConstants = std::move(pushConstantBytes);
-    dispatch.dispatchDims = {(faceSize + kEquirectWorkgroupSize - 1u) / kEquirectWorkgroupSize,
-                             (faceSize + kEquirectWorkgroupSize - 1u) / kEquirectWorkgroupSize, kCubeFaceCount};
-    m_pendingSteps.emplace_back(std::move(dispatch));
+    auto dispatch = std::make_shared<Setup::ComputeDispatch>();
+    dispatch->pipeline = m_compute.pipeline;
+    dispatch->descriptorSet = m_compute.descriptorSet;
+    dispatch->layout = m_compute.pipelineLayout;
+    dispatch->pushConstants = std::move(pushConstantBytes);
+    dispatch->dispatchDims = {(faceSize + kEquirectWorkgroupSize - 1u) / kEquirectWorkgroupSize,
+                              (faceSize + kEquirectWorkgroupSize - 1u) / kEquirectWorkgroupSize, kCubeFaceCount};
+    m_pendingSteps.push_back(Setup::makeStep(std::move(dispatch)));
 
-    m_pendingSteps.emplace_back(Setup::ImageLayoutChange{.image = texture.getVulkanImage(),
-                                                         .from = vk::ImageLayout::eGeneral,
-                                                         .to = vk::ImageLayout::eShaderReadOnlyOptimal,
-                                                         .range = CubeColorRange()});
+    m_pendingSteps.push_back(Setup::makeStep(Setup::ImageLayoutChange{.image = texture.getVulkanImage(),
+                                                                      .from = vk::ImageLayout::eGeneral,
+                                                                      .to = vk::ImageLayout::eShaderReadOnlyOptimal,
+                                                                      .range = CubeColorRange()}));
 
     return textureResult;
 }
