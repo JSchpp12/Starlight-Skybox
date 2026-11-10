@@ -1,7 +1,5 @@
 #pragma once
 
-#include "star_skybox/maker/SkyboxInitializer.hpp"
-
 #include <starlight/setup/RenderResourceSetup.hpp>
 #include <starlight/wrappers/graphics/StarSemaphore.hpp>
 
@@ -32,8 +30,8 @@ struct SkyboxMakeResult
     star::Handle buffer{};
     /// Equirect source-buffer transfer completion semaphore, when a compute conversion is used.
     std::optional<star::StarSemaphore> bufferTransfer{};
-    /// One-shot work to submit once the owning render phase exists; empty for CPU sampling.
-    star::skybox::SkyboxInitializer initializer{};
+    /// One-shot work the owning pass must record before sampling the texture; empty for CPU sampling.
+    star::setup::RenderResourceSetup::PrepRequest prep{};
 };
 
 /// @brief Loads a skybox description from a JSON file and submits the texture transfer request that backs it.

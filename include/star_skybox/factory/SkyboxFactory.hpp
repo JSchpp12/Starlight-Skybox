@@ -74,7 +74,7 @@ template <typename SamplingPolicy>
                             .transfer = result.transfer,
                             .buffer = result.buffer,
                             .bufferTransfer = result.bufferTransfer,
-                            .initializer = star::skybox::SkyboxInitializer{std::move(prep)}};
+                            .prep = std::move(prep)};
 }
 
 /// @brief Creates and submits the transfer request for the selected sampling policy.
