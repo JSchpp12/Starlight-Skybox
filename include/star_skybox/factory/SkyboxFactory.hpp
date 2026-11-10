@@ -67,14 +67,33 @@ template <typename SamplingPolicy>
 {
     star::setup::RenderResourceSetup::PrepRequest prep{};
 
-    const SkyboxTransferResult result = MakeSkyboxGPUData<SamplingPolicy>(
+    const SkyboxTransferResult transferResult = MakeSkyboxGPUData<SamplingPolicy>(
         deviceContext, skyboxContext, std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath), prep);
 
-    return SkyboxMakeResult{.resource = result.resource,
-                            .transfer = result.transfer,
-                            .buffer = result.buffer,
-                            .bufferTransfer = result.bufferTransfer,
-                            .prep = std::move(prep)};
+    SkyboxMakeResult result;
+    result.resource = transferResult.resource;
+    result.prep = std::move(prep);
+
+    // The owning pass observes these before sampling: the image wait covers the transfer copy, and the optional
+    // source-buffer wait covers the equirect upload read by the conversion dispatch.
+    if (transferResult.transfer.vkSemaphore != VK_NULL_HANDLE)
+    {
+        result.waits.push_back({.key = transferResult.resource,
+                                .semaphore = transferResult.transfer,
+                                .stages = vk::PipelineStageFlagBits::eComputeShader |
+                                          vk::PipelineStageFlagBits::eVertexShader |
+                                          vk::PipelineStageFlagBits::eFragmentShader});
+    }
+
+    if (transferResult.buffer.isInitialized() && transferResult.bufferTransfer.has_value() &&
+        transferResult.bufferTransfer->vkSemaphore != VK_NULL_HANDLE)
+    {
+        result.waits.push_back({.key = transferResult.buffer,
+                                .semaphore = *transferResult.bufferTransfer,
+                                .stages = vk::PipelineStageFlagBits::eComputeShader});
+    }
+
+    return result;
 }
 
 /// @brief Creates and submits the transfer request for the selected sampling policy.
@@ -93,6 +112,7 @@ template <typename SamplingPolicy>
     constexpr bool computeSampling = SamplingPolicy::usesComputeConversion;
 
     SkyboxComputeResources computeResources{};
+    std::shared_ptr<star::skybox::SkyboxPrepState> prepState;
     if constexpr (computeSampling)
     {
         // Engine-lifetime pipeline/layouts and the shared pool are created once; the promise and the set are per make.
@@ -110,43 +130,14 @@ template <typename SamplingPolicy>
                     vk::DescriptorSetAllocateInfo().setDescriptorPool(pool).setSetLayouts(setLayout))
                 .front();
 
-        auto prepState = std::make_shared<star::skybox::SkyboxPrepState>();
+        prepState = std::make_shared<star::skybox::SkyboxPrepState>();
         std::promise<std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string>>
             contributionPromise;
         prepState->future = contributionPromise.get_future();
 
+        // Keep our own reference: the prepare callback assigned below needs the state after the request takes its copy.
         computeResources =
             SkyboxComputeResources::From(pipeline, pool, descriptorSet, std::move(contributionPromise), prepState);
-
-        prep.prepare = [prepState](const star::core::device::DeviceContext &,
-                                   star::setup::RenderResourceSetup::ResourcePrepDefinition &out) {
-            if (prepState->resolved)
-                return;
-
-            // Blocks until the transfer worker publishes the definition. The compute pipeline is resolved later, at
-            // record time, when the main loop has pumped the pipeline build's completion task.
-            std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string> result;
-            try
-            {
-                result = prepState->future.get();
-            }
-            catch (const std::future_error &e)
-            {
-                prepState->resolved = true;
-                star::core::logging::warning("Skybox conversion producer was destroyed without publishing: ", e.what());
-                return;
-            }
-            prepState->resolved = true;
-
-            if (!result)
-            {
-                star::core::logging::warning("Skybox conversion contribution failed: ", result.error(),
-                                             ". Recording without it.");
-                return;
-            }
-
-            out = std::move(*result);
-        };
     }
 
     const SkyboxInfo info = skyboxInfo->get();
@@ -198,6 +189,62 @@ template <typename SamplingPolicy>
     deviceContext.getCmdBus().submit(transfer);
     const auto submission = transfer.getReply().get();
     const star::Handle resource = submission.image;
+
+    if constexpr (computeSampling)
+    {
+        // The equirect source buffer is per-make and is read only by the conversion dispatch. Fold its release into the
+        // definition's release, which is gated on the pass's recording submission: that submission waits on the buffer
+        // transfer and runs the dispatch, so the gate covers the buffer's last GPU use. A failed contribution still
+        // frees the buffer on that gate instead of leaking it.
+        prep.prepare = [prepState,
+                        sourceBuffer = bufferHandle](const star::core::device::DeviceContext &,
+                                                     star::setup::RenderResourceSetup::ResourcePrepDefinition &out) {
+            if (prepState->resolved)
+                return;
+
+            const auto attachSourceBuffer = [&out, &sourceBuffer]() {
+                if (!sourceBuffer.isInitialized())
+                    return;
+
+                auto inner = std::move(out.release.keepAlive);
+                out.release.gateOnRecordingSubmission = true;
+                out.release.keepAlive = [inner = std::move(inner),
+                                         buffer = sourceBuffer](star::core::device::DeviceContext &context) {
+                    if (inner)
+                        inner(context);
+
+                    context.getGraphicsManagers().bufferManager.deleteRequest(context.getDevice(), buffer);
+                };
+            };
+
+            // Blocks until the transfer worker publishes the definition. The compute pipeline is resolved later, at
+            // record time, when the main loop has pumped the pipeline build's completion task.
+            std::expected<star::setup::RenderResourceSetup::ResourcePrepDefinition, std::string> result;
+            try
+            {
+                result = prepState->future.get();
+            }
+            catch (const std::future_error &e)
+            {
+                prepState->resolved = true;
+                star::core::logging::warning("Skybox conversion producer was destroyed without publishing: ", e.what());
+                attachSourceBuffer();
+                return;
+            }
+            prepState->resolved = true;
+
+            if (!result)
+            {
+                star::core::logging::warning("Skybox conversion contribution failed: ", result.error(),
+                                             ". Recording without it.");
+                attachSourceBuffer();
+                return;
+            }
+
+            out = std::move(*result);
+            attachSourceBuffer();
+        };
+    }
 
     return SkyboxTransferResult{.resource = resource,
                                 .transfer = submission.semaphore,

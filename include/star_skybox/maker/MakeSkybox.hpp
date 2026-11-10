@@ -1,12 +1,11 @@
 #pragma once
 
 #include <starlight/setup/RenderResourceSetup.hpp>
-#include <starlight/wrappers/graphics/StarSemaphore.hpp>
 
 #include <star_common/Handle.hpp>
 
-#include <optional>
 #include <string>
+#include <vector>
 
 namespace star::core::device
 {
@@ -20,17 +19,16 @@ class SkyboxContext;
 
 namespace star::skybox::maker
 {
-/// @brief Result of building a skybox: the GPU resource and the one-shot setup the render phase must record.
+/// @brief Result of building a skybox: the GPU resource, the transfer waits it needs, and the one-shot setup the
+/// render phase must record.
 struct SkyboxMakeResult
 {
+    /// @brief Manager handle of the cube texture.
     star::Handle resource{};
-    /// Image transfer completion semaphore.
-    star::StarSemaphore transfer{};
-    /// Buffer-manager handle of the equirect source buffer, when a compute conversion is used.
-    star::Handle buffer{};
-    /// Equirect source-buffer transfer completion semaphore, when a compute conversion is used.
-    std::optional<star::StarSemaphore> bufferTransfer{};
-    /// One-shot work the owning pass must record before sampling the texture; empty for CPU sampling.
+    /// @brief Transfer-completion waits the owning pass must observe before sampling the texture or running the
+    /// conversion dispatch that reads the equirect source buffer.
+    std::vector<star::setup::TransferWait> waits{};
+    /// @brief One-shot work the owning pass must record before sampling the texture; empty for CPU sampling.
     star::setup::RenderResourceSetup::PrepRequest prep{};
 };
 
