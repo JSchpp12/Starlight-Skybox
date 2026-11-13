@@ -11,17 +11,25 @@ namespace star::skybox::TransferRequest
 {
 using star::skybox::SkyboxInfo;
 
-SkyboxBuffer::SkyboxBuffer(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex,
-                           std::filesystem::path texturePath, bool computeEquirect)
-    // computeEquirect=true stages the raw equirect pixels for the GPU conversion dispatch; false carries CPU-reshaped
-    // cube faces.
-    : m_core(std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath), computeEquirect)
+SkyboxBuffer::SkyboxBuffer(SkyboxInfo skyboxInfo, uint32_t graphicsQueueFamilyIndex, std::filesystem::path texturePath,
+                           std::promise<ConversionResult> inputsPromise)
+    // computeEquirect=true stages the raw equirect pixels for the GPU conversion dispatch.
+    : m_core(std::move(skyboxInfo), graphicsQueueFamilyIndex, std::move(texturePath), true),
+      m_inputsPromise(std::move(inputsPromise))
 {
 }
 
 void SkyboxBuffer::prep()
 {
-    m_core.prep();
+    try
+    {
+        m_core.prep();
+    }
+    catch (const std::exception &e)
+    {
+        publishFailure(e.what());
+        throw;
+    }
 }
 
 std::unique_ptr<star::StarBuffers::Buffer> SkyboxBuffer::createStagingBuffer(
@@ -67,5 +75,40 @@ std::unique_ptr<star::StarBuffers::Buffer> SkyboxBuffer::createFinal(
 void SkyboxBuffer::writeDataToStageBuffer(star::StarBuffers::Buffer &stagingBuffer) const
 {
     m_core.writeDataToStageBuffer(stagingBuffer);
+}
+
+void SkyboxBuffer::onTransferComplete()
+{
+    if (!m_core.hasConversionData())
+    {
+        // Defensive: never leave the render thread's future unresolved.
+        publishFailure("Skybox buffer transfer completed without conversion inputs");
+        return;
+    }
+
+    publishInputs(m_core.conversionInputs());
+}
+
+void SkyboxBuffer::onTransferFailed(const std::string &message)
+{
+    publishFailure(message);
+}
+
+void SkyboxBuffer::publishInputs(ConversionInputs inputs)
+{
+    if (!m_inputsPromise.has_value())
+        return;
+
+    m_inputsPromise->set_value(std::move(inputs));
+    m_inputsPromise.reset();
+}
+
+void SkyboxBuffer::publishFailure(const std::string &reason)
+{
+    if (!m_inputsPromise.has_value())
+        return;
+
+    m_inputsPromise->set_value(std::unexpected(reason));
+    m_inputsPromise.reset();
 }
 } // namespace star::skybox::TransferRequest

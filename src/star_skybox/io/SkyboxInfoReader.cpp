@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cassert>
+#include <exception>
 #include <fstream>
 
 namespace star::skybox::io
@@ -16,7 +17,16 @@ int SkyboxInfoReader::operator()(const std::filesystem::path &filePath)
 {
     assert(filePath.extension() == ".json" && "Requested file is not an expected json file");
 
-    m_skyboxInfo.set_value(load(filePath));
+    try
+    {
+        m_skyboxInfo.set_value(load(filePath));
+    }
+    catch (const std::exception &e)
+    {
+        star::core::logging::warning("Failed to read skybox info '", filePath.string(), "': ", e.what());
+        m_skyboxInfo.set_exception(std::current_exception());
+    }
+
     return 0;
 }
 

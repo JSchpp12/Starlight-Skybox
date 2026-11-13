@@ -19,19 +19,20 @@ set(${PROJECT_NAME}_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxInfo.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxTextureOptions.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxTextureSpec.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxComputeResources.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxConversionPipeline.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/SkyboxConversionInputs.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/struct/EquirectPushConstants.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/context/SkyboxContext.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/detail/SkyboxTransferCore.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/json/SkyboxEnums_JSON.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/json/SkyboxInfo_JSON.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/io/SkyboxInfoReader.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/io/SkyboxLibraryReader.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/io/SkyboxReadResult.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/io/SkyboxReader.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/SelectSkyboxTextureFormat.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/SkyboxTextureCreation.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/CPUSampling.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/GPUSampling.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/EquirectTexturePolicy.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/EquirectCpuTexturePolicy.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/textures/detail/policy/EquirectTextureTransformer.hpp
@@ -40,15 +41,22 @@ set(${PROJECT_NAME}_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/buffers/TransferRequest_SkyboxBuffer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/maker/MakeSkybox.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/factory/SkyboxFactory.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/command/SkyboxTypes.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/command/GetSkyboxInfo.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/command/GetAllSkyboxRegistrations.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/command/GetSkyboxInfoByPath.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/star_skybox/service/SkyboxFileService.hpp
 )
 
 set(${PROJECT_NAME}_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/json/SkyboxEnums_JSON.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/json/SkyboxInfo_JSON.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/io/SkyboxInfoReader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/io/SkyboxLibraryReader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/io/SkyboxReadResult.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/SkyboxTextureCreation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/SkyboxConversion.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/CPUSampling.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/GPUSampling.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/buffers/TransferRequest_SkyboxBuffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/EquirectTexturePolicy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/EquirectCpuTexturePolicy.cpp
@@ -56,7 +64,12 @@ set(${PROJECT_NAME}_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/textures/detail/policy/LinearTexturePolicy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/detail/SkyboxTransferCore.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/maker/MakeSkybox.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/factory/SkyboxFactory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/context/SkyboxContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/command/GetSkyboxInfo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/command/GetAllSkyboxRegistrations.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/command/GetSkyboxInfoByPath.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/star_skybox/service/SkyboxFileService.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC

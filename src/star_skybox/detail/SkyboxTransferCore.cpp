@@ -14,18 +14,17 @@ namespace star::skybox::detail
 using star::skybox::SkyboxInfo;
 using star::skybox::SkyboxLayout;
 
-SkyboxTransferCore::SkyboxTransferCore(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo,
-                                       uint32_t graphicsQueueFamilyIndex, std::filesystem::path texturePath,
-                                       bool computeEquirect)
-    : m_skyboxInfo(std::move(skyboxInfo)), m_graphicsQueueFamilyIndex(graphicsQueueFamilyIndex),
-      m_computeEquirect(computeEquirect), m_texturePath(std::move(texturePath))
+SkyboxTransferCore::SkyboxTransferCore(SkyboxInfo skyboxInfo, uint32_t graphicsQueueFamilyIndex,
+                                       std::filesystem::path texturePath, bool computeEquirect)
+    : m_graphicsQueueFamilyIndex(graphicsQueueFamilyIndex), m_computeEquirect(computeEquirect),
+      m_texturePath(std::move(texturePath))
 {
+    m_info.emplace(std::move(skyboxInfo));
 }
 
 void SkyboxTransferCore::prep()
 {
-    if (!m_info.has_value())
-        m_info = m_skyboxInfo->get();
+    assert(m_info.has_value() && "Skybox info must be resolved before prep()");
 
     if (!m_transformInfo.has_value())
     {
@@ -132,6 +131,20 @@ std::string SkyboxTransferCore::debugName() const
         return "skybox";
 
     return m_info->name;
+}
+
+SkyboxConversionInputs SkyboxTransferCore::conversionInputs() const
+{
+    constexpr float degreesToRadians = 3.14159265358979323846f / 180.0f;
+    const auto &resolution = transformInfo().imageFileInfo.resolution;
+
+    SkyboxConversionInputs inputs;
+    inputs.pushConstants = EquirectPushConstants{.sourceWidth = static_cast<std::uint32_t>(resolution.x),
+                                                 .sourceHeight = static_cast<std::uint32_t>(resolution.y),
+                                                 .yawRadians = info().yawDegrees * degreesToRadians,
+                                                 .padding = 0.0f};
+    inputs.debugName = debugName();
+    return inputs;
 }
 
 SkyboxTransferCore::PolicyVariant SkyboxTransferCore::makePolicy() const

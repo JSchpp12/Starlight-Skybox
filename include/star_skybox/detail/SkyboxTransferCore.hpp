@@ -1,6 +1,7 @@
 #pragma once
 
 #include "star_skybox/io/SkyboxReader.hpp"
+#include "star_skybox/struct/SkyboxConversionInputs.hpp"
 #include "star_skybox/struct/SkyboxInfo.hpp"
 #include "star_skybox/struct/SkyboxTextureSpec.hpp"
 #include "star_skybox/textures/detail/policy/EquirectCpuTexturePolicy.hpp"
@@ -9,7 +10,6 @@
 
 #include <cstdint>
 #include <filesystem>
-#include <future>
 #include <memory>
 #include <optional>
 #include <string>
@@ -36,31 +36,34 @@ class Texture;
 namespace star::skybox::detail
 {
 /// @brief Shared implementation of the two skybox transfer requests.
-/// @details Both the cube-texture and the storage-buffer request resolve the same sidecar, read the same source image
-/// and select the same layout policy; only their destination resource differs. This class owns that shared half so
-/// the requests do not duplicate prep/staging/read logic.
 class SkyboxTransferCore
 {
   public:
-    /// @param skyboxInfo Future carrying the loaded skybox description.
+    /// @param skyboxInfo Resolved skybox description.
     /// @param graphicsQueueFamilyIndex Family index of the engine's graphics queue.
     /// @param texturePath Path of the source image file the code selected.
     /// @param computeEquirect True when equirectangular images are staged raw and reshaped by a compute dispatch; false
     /// when the CPU transformer reshapes them. Linear images ignore it.
-    SkyboxTransferCore(std::shared_ptr<std::future<SkyboxInfo>> skyboxInfo, uint32_t graphicsQueueFamilyIndex,
-                       std::filesystem::path texturePath, bool computeEquirect);
+    SkyboxTransferCore(SkyboxInfo skyboxInfo, uint32_t graphicsQueueFamilyIndex, std::filesystem::path texturePath,
+                       bool computeEquirect);
     SkyboxTransferCore(SkyboxTransferCore &&) = default;
     SkyboxTransferCore &operator=(SkyboxTransferCore &&) = default;
     SkyboxTransferCore(const SkyboxTransferCore &) = delete;
     SkyboxTransferCore &operator=(const SkyboxTransferCore &) = delete;
     ~SkyboxTransferCore() = default;
 
-    /// @brief Resolves the skybox description and the source image's file info.
+    /// @brief Resolves the source image's file info.
     /// @throws When the source file's header cannot be parsed.
     void prep();
 
     const SkyboxInfo &info() const;
     const io::SkyboxTransformInfo &transformInfo() const;
+
+    /// @brief True once prep() has resolved both the description and the source image info.
+    [[nodiscard]] bool hasConversionData() const noexcept
+    {
+        return m_info.has_value() && m_transformInfo.has_value();
+    }
 
     /// @brief True when the sidecar selects the equirectangular layout.
     bool isEquirect() const;
@@ -100,6 +103,9 @@ class SkyboxTransferCore
     /// @brief Debug identity of the source.
     std::string debugName() const;
 
+    /// @brief Everything the render-thread conversion prep needs, computed from the resolved info and image header.
+    [[nodiscard]] SkyboxConversionInputs conversionInputs() const;
+
   private:
     using PolicyVariant = std::variant<TransferRequest::LinearTexturePolicy, TransferRequest::EquirectTexturePolicy,
                                        TransferRequest::EquirectCpuTexturePolicy>;
@@ -107,7 +113,6 @@ class SkyboxTransferCore
     static PolicyVariant MakePolicy(SkyboxLayout layout, bool computeEquirect);
     PolicyVariant makePolicy() const;
 
-    std::shared_ptr<std::future<SkyboxInfo>> m_skyboxInfo;
     uint32_t m_graphicsQueueFamilyIndex = 0;
     /// True when equirectangular images are prepared by the compute dispatch instead of the CPU transformer.
     bool m_computeEquirect = false;
