@@ -19,8 +19,6 @@ namespace star::skybox::TransferRequest
 using star::skybox::SkyboxInfo;
 
 /// @brief CPU-path transfer request: transfers the source image into the cube texture via the transfer queue.
-/// @details This is the only TransferRequest submitted on the CPU path. It owns the resolved SkyboxInfo. GPU
-/// conversion is not part of this request; it lives in the render-thread prep returned by the factory.
 class SkyboxTexture : public star::TransferRequest::Texture
 {
   public:
@@ -29,8 +27,8 @@ class SkyboxTexture : public star::TransferRequest::Texture
     {
     }
 
-    SkyboxTexture(SkyboxTexture &&) = default;
-    SkyboxTexture &operator=(SkyboxTexture &&) = default;
+    SkyboxTexture(SkyboxTexture &&) = delete;
+    SkyboxTexture &operator=(SkyboxTexture &&) = delete;
     SkyboxTexture(const SkyboxTexture &) = delete;
     SkyboxTexture &operator=(const SkyboxTexture &) = delete;
     virtual ~SkyboxTexture() = default;
