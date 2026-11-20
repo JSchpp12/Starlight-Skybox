@@ -155,10 +155,10 @@ SkyboxMakeResult MakeSkyboxGPU(star::core::device::DeviceContext &deviceContext,
         star::ReadinessCondition{.resource = state->pipeline.pipeline,
                                  .readiness = star::PipelineReadiness{.manager = &deviceContext.getPipelineManager(),
                                                                       .context = &deviceContext}};
-    if (bufferResult.semaphore.vkSemaphore != VK_NULL_HANDLE)
+    if (bufferResult.semaphoreRecord.isInitialized())
     {
         result.wait = {.key = bufferResult.buffer,
-                       .semaphore = bufferResult.semaphore,
+                       .semaphoreRecord = bufferResult.semaphoreRecord,
                        .stages = vk::PipelineStageFlagBits::eComputeShader};
     }
 
@@ -180,10 +180,10 @@ SkyboxMakeResult MakeSkyboxCPU(star::core::device::DeviceContext &deviceContext,
 
     SkyboxMakeResult result;
     result.resource = submission.image;
-    if (submission.semaphore.vkSemaphore != VK_NULL_HANDLE)
+    if (submission.semaphoreRecord.isInitialized())
     {
         result.wait = {.key = submission.image,
-                       .semaphore = submission.semaphore,
+                       .semaphoreRecord = submission.semaphoreRecord,
                        .stages = vk::PipelineStageFlagBits::eComputeShader | vk::PipelineStageFlagBits::eVertexShader |
                                  vk::PipelineStageFlagBits::eFragmentShader};
     }
